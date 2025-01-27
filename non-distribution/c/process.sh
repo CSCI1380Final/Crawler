@@ -6,3 +6,11 @@
 # Convert each line to one word per line, **remove non-letter characters**, make lowercase, convert to ASCII; then remove stopwords (inside d/stopwords.txt)
 # Commands that will be useful: tr, iconv, grep
 
+
+
+
+iconv -f utf8 -t ascii//TRANSLIT |  
+tr -c 'a-zA-Z' '\n' |              
+tr 'A-Z' 'a-z' |                   
+grep -v '^$' |                     
+grep -Fxv -f d/stopwords.txt       
