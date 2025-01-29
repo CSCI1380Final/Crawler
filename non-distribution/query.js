@@ -31,6 +31,23 @@ const path = require('path');
 
 
 function query(indexFile, args) {
+  const queryString = args.join(' '); // Join arguments into a single string
+
+  try {
+    const processedQuery = execSync(`echo "${queryString}" | ./c/process.sh | ./c/stem.js | tr "\\r\\n" "  "`, {encoding: 'utf-8'}).trim();
+    if (!processedQuery) {
+      return;
+    }
+
+    const indexData = fs.readFileSync(indexFile, 'utf-8');
+    const matchingLines = indexData.split('\n').filter((line) => {
+      return line.includes(processedQuery);
+    });
+
+    matchingLines.forEach((line) => console.log(line));
+  } catch (error) {
+    process.exit(1);
+  }
 }
 
 const args = process.argv.slice(2); // Get command-line arguments
@@ -39,5 +56,5 @@ if (args.length < 1) {
   process.exit(1);
 }
 
-const indexFile = 'd/global-index.txt'; // Path to the global index file
+const indexFile = path.join(__dirname, 'd/global-index.txt'); // Path to the global index file
 query(indexFile, args);

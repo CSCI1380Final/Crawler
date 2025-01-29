@@ -11,6 +11,6 @@
 
 iconv -f utf8 -t ascii//TRANSLIT |  
 tr -c 'a-zA-Z' '\n' |              
-tr 'A-Z' 'a-z' |                   
+tr '[:upper:]' '[:lower:]' |                   
 grep -v '^$' |                     
 grep -Fxv -f d/stopwords.txt       

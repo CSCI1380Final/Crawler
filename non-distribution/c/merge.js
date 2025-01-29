@@ -32,6 +32,7 @@ Remember to error gracefully, particularly when reading the global index file.
 */
 
 const fs = require('fs');
+// const {url} = require('inspector');
 const readline = require('readline');
 // The `compare` function can be used for sorting.
 const compare = (a, b) => {
@@ -50,11 +51,23 @@ const rl = readline.createInterface({
 // 1. Read the incoming local index data from standard input (stdin) line by line.
 let localIndex = '';
 rl.on('line', (line) => {
+  localIndex += line + '\n';
 });
 
 rl.on('close', () => {
   // 2. Read the global index name/location, using process.argv
   // and call printMerged as a callback
+  const globalIndexFile = process.argv[2];
+
+  fs.readFile(globalIndexFile, 'utf8', (err, data) => {
+    if (err && err.code === 'ENOENT') { // when file does not exist
+      printMerged(null, '');
+    } else if (err) {
+      printMerged(err, null);
+    } else {
+      printMerged(null, data);
+    }
+  });
 });
 
 const printMerged = (err, data) => {
@@ -75,13 +88,41 @@ const printMerged = (err, data) => {
 
   // 3. For each line in `localIndexLines`, parse them and add them to the `local` object where keys are terms and values contain `url` and `freq`.
   for (const line of localIndexLines) {
-    local[term] = {url, freq};
+    const parts = line.split('|').map((p) => p.trim());
+    if (parts.length !== 3) {
+      continue;
+    }
+    const term = parts[0];
+    const freqStr = parts[1];
+    const url = parts[2];
+    const freq = parseInt(freqStr);
+    if (!isNaN(freq)) {
+      local[term] = {'url': url, 'freq': freq};
+    }
   }
 
   // 4. For each line in `globalIndexLines`, parse them and add them to the `global` object where keys are terms and values are arrays of `url` and `freq` objects.
   // Use the .trim() method to remove leading and trailing whitespace from a string.
   for (const line of globalIndexLines) {
-    global[term] = urlfs; // Array of {url, freq} objects
+    const parts = line.split('|').map((p) => {
+      return p.trim();
+    });
+    if (parts.length !== 2) {
+      continue;
+    }
+    const term = parts[0];
+    const urlFreqs = parts[1].split(' '); // splits based on space
+    const urlFreqList = [];
+    for (let i = 0; i < urlFreqs.length; i = i + 2) {
+      const url = urlFreqs[i];
+      const freq = parseInt(urlFreqs[i+1]);
+      if (url && !isNaN(freq)) {
+        urlFreqList.push({'url': url, 'freq': freq});
+      }
+    }
+    if (urlFreqList.length > 0) {
+      global[term] = urlFreqList;
+    }
   }
 
   // 5. Merge the local index into the global index:
@@ -90,6 +131,21 @@ const printMerged = (err, data) => {
   //     - Sort the array by `freq` in descending order.
   // - If the term does not exist in the global index:
   //     - Add it as a new entry with the local index's data.
+  for (const term in local) {
+    if (global[term]) {
+      global[term].push(local[term]);
+      global[term].sort(compare);
+    } else {
+      global[term] = [local[term]];
+    }
+  }
   // 6. Print the merged index to the console in the same format as the global index file:
   //    - Each line contains a term, followed by a pipe (`|`), followed by space-separated pairs of `url` and `freq`.
+  for (const term in global) {
+    let outputLine = term + ' |';
+    for (const entry of global[term]) {
+      outputLine += ' ' + entry.url + ' ' + entry.freq;
+    }
+    console.log(outputLine);
+  }
 };
