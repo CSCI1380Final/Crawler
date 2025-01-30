@@ -132,11 +132,19 @@ const printMerged = (err, data) => {
   // - If the term does not exist in the global index:
   //     - Add it as a new entry with the local index's data.
   for (const term in local) {
+    const localEntry = local[term];
     if (global[term]) {
-      global[term].push(local[term]);
+      const existingIndex = global[term].findIndex((e) => e.url === localEntry.url);
+      if (existingIndex >= 0) {
+        if (localEntry.freq > global[term][existingIndex].freq) {
+          global[term][existingIndex] = localEntry;
+        }
+      } else {
+        global[term].push(localEntry);
+      }
       global[term].sort(compare);
     } else {
-      global[term] = [local[term]];
+      global[term] = [localEntry];
     }
   }
   // 6. Print the merged index to the console in the same format as the global index file:

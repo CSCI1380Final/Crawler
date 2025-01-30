@@ -1,0 +1,8 @@
+check stuff level | 2 | https://mytest.url
+level check stuff | 1 | https://mytest.url
+level right | 1 | https://mytest.url
+link check stuff | 1 | https://mytest.url
+right | 1 | https://mytest.url
+simpl link check | 1 | https://mytest.url
+stuff level check | 1 | https://mytest.url
+stuff level right | 1 | https://mytest.url

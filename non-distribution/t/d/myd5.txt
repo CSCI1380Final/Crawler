@@ -1,0 +1,9 @@
+check	stuff	level
+check	stuff	level
+level	check	stuff
+level	right
+link	check	stuff
+right
+simpl	link	check
+stuff	level	check
+stuff	level	right
