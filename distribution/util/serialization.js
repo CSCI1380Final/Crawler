@@ -78,8 +78,7 @@ function deserialize(string) {
   try{
    jsObject = JSON.parse(string);
   }catch(e){
-    console.log(e)
-    return null;
+    throw e;
   }
   let type = jsObject.type
   if (type === "null") {
@@ -119,7 +118,6 @@ function deserialize(string) {
     }
     return obj;
   }
-  throw new SyntaxError();
 }
 
 
