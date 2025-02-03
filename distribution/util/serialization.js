@@ -3,48 +3,48 @@ function serialize(object) {
   // Case null
   if (object === null) {
     return (
-      JSON.stringify({type:"Null", value: "null" })
+      JSON.stringify({type:"null", value: "null" })
       )
   }
   let type = typeof(object)
   // Case undefined
   if (type === "undefined") {
     return (
-      JSON.stringify({type:"Undefined", value: "undefined"})
+      JSON.stringify({type:"undefined", value: "undefined"})
       )
   }
   // Case number
   if (type === "number") {
      return (
-      JSON.stringify({type:"Number", value: object.toString()})
+      JSON.stringify({type:"number", value: object.toString()})
       )
   }
   // Case boolean
   if (type === "boolean") {
      return (
-      JSON.stringify({type:"Boolean", value: object.toString() })
+      JSON.stringify({type:"boolean", value: object.toString() })
       )
   }
   // Case string
   if (type === "string") {
     return (
-      JSON.stringify({type:"String", value: object})
+      JSON.stringify({type:"string", value: object})
     )
   }
   if (type === "function") {
      return (
-      JSON.stringify({type:"Function", value: object.toString()})
+      JSON.stringify({type:"function", value: object.toString()})
     )
   }
    if (object instanceof Date) {
     return JSON.stringify({
-      type: "Date",
+      type: "date",
       value: object.toISOString() 
     });
   }
   if (object instanceof Error) {
     return JSON.stringify({
-      type: "Error",
+      type: "error",
       name: object.name,
       value: object.message,
     });
@@ -54,7 +54,7 @@ function serialize(object) {
       return serialize(e)
      })
      return JSON.stringify({
-        type: "Array",
+        type: "array",
         value: processed_arr
       })
   }
@@ -66,7 +66,7 @@ function serialize(object) {
       }
     }
     return JSON.stringify({
-      type: "Object",
+      type: "object",
       value: serializedObj
     });
   }
@@ -82,43 +82,44 @@ function deserialize(string) {
     return null;
   }
   let type = jsObject.type
-  if (type === "Null") {
+  if (type === "null") {
     return null;
   }
-  if (type === "Undefined") {
+  if (type === "undefined") {
     return undefined;
   }
-  if (type === "Boolean") {
+  if (type === "boolean") {
     return jsObject.value === "true";
   }
-  if (type === "Number") {
+  if (type === "number") {
     return Number(jsObject.value);
   }
-  if (type === "String") {
+  if (type === "string") {
     return jsObject.value;
   }
-   if (type === "Function") {
+   if (type === "function") {
     return parseFunction(jsObject.value);
   }
-  if (type === "Date") {
+  if (type === "date") {
     return new Date(jsObject.value)
   }
-  if (type === "Error") {
+  if (type === "error") {
      const error = new Error(jsObject.value);
      error.name = jsObject.name;
      return error
   }
-  if (type === "Array") {
+  if (type === "array") {
      const deserializeList = jsObject.value.map(e => deserialize(e))
      return deserializeList
   }
-  if (type === "Object") {
+  if (type === "object") {
     const obj = {};
     for (const key in jsObject.value) {
       obj[key] = deserialize(jsObject.value[key]); 
     }
     return obj;
   }
+  throw new SyntaxError();
 }
 
 
