@@ -6,7 +6,7 @@ function serialize(object) {
       JSON.stringify({type:"Null", value: "null" })
       )
   }
-  type = typeof(object)
+  let type = typeof(object)
   // Case undefined
   if (type === "undefined") {
     return (
@@ -36,17 +36,52 @@ function serialize(object) {
       JSON.stringify({type:"Function", value: object.toString()})
     )
   }
+   if (object instanceof Date) {
+    return JSON.stringify({
+      type: "Date",
+      value: object.toISOString() 
+    });
+  }
+  if (object instanceof Error) {
+    return JSON.stringify({
+      type: "Error",
+      name: object.name,
+      value: object.message,
+    });
+  }
+  if (object instanceof Array) {
+    const processed_arr = object.map((e)=> {
+      return serialize(e)
+     })
+     return JSON.stringify({
+        type: "Array",
+        value: processed_arr
+      })
+  }
+  if (type === "object") {
+    const serializedObj = {};
+    for (const key in object) {
+      if (object.hasOwnProperty(key)) {
+        serializedObj[key] = serialize(object[key]);
+      }
+    }
+    return JSON.stringify({
+      type: "Object",
+      value: serializedObj
+    });
+  }
 }
 
 
 function deserialize(string) {
+  let jsObject;
   try{
-  jsObject = JSON.parse(string);
+   jsObject = JSON.parse(string);
   }catch(e){
     console.log(e)
     return null;
   }
-  type = jsObject.type
+  let type = jsObject.type
   if (type === "Null") {
     return null;
   }
@@ -64,6 +99,25 @@ function deserialize(string) {
   }
    if (type === "Function") {
     return parseFunction(jsObject.value);
+  }
+  if (type === "Date") {
+    return new Date(jsObject.value)
+  }
+  if (type === "Error") {
+     const error = new Error(jsObject.value);
+     error.name = jsObject.name;
+     return error
+  }
+  if (type === "Array") {
+     const deserializeList = jsObject.value.map(e => deserialize(e))
+     return deserializeList
+  }
+  if (type === "Object") {
+    const obj = {};
+    for (const key in jsObject.value) {
+      obj[key] = deserialize(jsObject.value[key]); 
+    }
+    return obj;
   }
 }
 

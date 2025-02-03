@@ -1,0 +1,14 @@
+PASS  test/store.local.test.js
+ PASS  test/mem.local.test.js
+ PASS  test/groups.local.test.js
+ PASS  test/routes.local.test.js
+ PASS  test/store.all.test.js
+ PASS  test/comm.all.test.js
+ PASS  test/mr.all.test.js
+ PASS  test/mem.all.test.js
+ PASS  test/groups.all.test.js
+ PASS  test/comm.local.test.js
+ PASS  test/routes.all.test.js
+ PASS  test/status.all.test.js
+ PASS  test/serialization.util.test.js
+ PASS  test/status.local.test.js
