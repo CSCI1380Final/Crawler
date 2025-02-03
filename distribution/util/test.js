@@ -1,20 +1,17 @@
 const serialization = require('./serialization');
 
 
-let res = serialization.serialize("strindqg")
+const add2 = (t) => t+10
+
+let res = serialization.serialize(add2)
 console.log(res)
 console.log(typeof(res))
 deRes = serialization.deserialize(res)
 console.log(deRes)
 
 
-function add(){
-    return 1
+function add(a){
+    return a + 1
 }
 
-const add2 = () =>{
-    return 2
-}
-
-console.log(add.toString())
-console.log(add2.toString())
+console.log(deRes(10))
