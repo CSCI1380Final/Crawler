@@ -25,7 +25,6 @@ function runLatencyTest(iterations = 1000) {
     const deserializationTimes = [];
 
     testCases.forEach((testCase, index) => {
-        console.log(`Test Case ${index + 1}:`);
         const serStartTime = performance.now();
         for (let i = 0; i < iterations; i++) {
             serialization.serialize(testCase);
@@ -48,8 +47,6 @@ function runLatencyTest(iterations = 1000) {
         serializationTimes.reduce((a, b) => a + b, 0) / serializationTimes.length;
     const avgDeserializationTime = 
         deserializationTimes.reduce((a, b) => a + b, 0) / deserializationTimes.length;
-
-    console.log('\nOverall Performance Summary:');
     console.log(`Average Serialization Time: ${avgSerializationTime.toFixed(6)} ms`);
     console.log(`Average Deserialization Time: ${avgDeserializationTime.toFixed(6)} ms`);
 }

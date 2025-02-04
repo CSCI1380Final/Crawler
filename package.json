@@ -37,14 +37,14 @@
       "dev": [],
       "aws": []
     },
-    "latency": {
+    "latency/ms": {
       "serialization":{
       "dev": [0.004573],
-      "aws": []
+      "aws": [0.008076]
       },
       "deserialization":{
       "dev": [0.002245],
-      "aws": []
+      "aws": [0.003303]
       }
     },
     "dloc": 3000
