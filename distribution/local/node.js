@@ -52,10 +52,18 @@ const start = function(callback) {
 
       /* Here, you can handle the service requests.
 =======
+      /* Here, you can handle the service requests.
+=======
+<<<<<<< HEAD
+<<<<<<< HEAD
+      /* Here, you can handle the service requests.
+=======
       /* Here, you can handle the service requests. 
->>>>>>> 45d722a (Update from https://github.com/brown-cs1380/project/commit/142540f5b6b6295f9011be51733d3db4cc9a79cc)
+>>>>>>> e962813 (Update from https://github.com/brown-cs1380/project/commit/142540f5b6b6295f9011be51733d3db4cc9a79cc)
 =======
       /* Here, you can handle the service requests.
+>>>>>>> 505414a (Update from https://github.com/brown-cs1380/project/commit/4489eea13d1ecd04998e6432f5074c619c87cc7f)
+>>>>>>> 29afd06 (Update from https://github.com/brown-cs1380/project/commit/4489eea13d1ecd04998e6432f5074c619c87cc7f)
       Use the local routes service to get the service you need to call.
       You need to call the service with the method and arguments provided in the request.
       Then, you need to serialize the result and send it back to the caller.
