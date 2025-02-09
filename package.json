@@ -1,6 +1,6 @@
 {
   "name": "cs1380-stencil",
-  "version": "0.1.7",
+  "version": "0.1.6",
   "description": "A library for building distributed systems.",
   "main": "distribution.js",
   "useLibrary": false,
@@ -26,27 +26,21 @@
     "@brown-ds/distribution": "latest"
   },
   "report": {
-    "hours": 16,
-    "loc": 270,
+    "hours": 999,
+    "loc": 999,
     "dev": {
-      "cpu-no": 8,
-      "mem-gb": 16,
-      "ssd-gb": 256
+      "cpu-no": 999,
+      "mem-gb": 999,
+      "ssd-gb": 999
     },
     "throughput": {
       "dev": [],
       "aws": []
     },
-    "latency/ms": {
-      "serialization":{
-      "dev": [0.004573],
-      "aws": [0.008076]
-      },
-      "deserialization":{
-      "dev": [0.002245],
-      "aws": [0.003303]
-      }
+    "latency": {
+      "dev": [],
+      "aws": []
     },
-    "dloc": 3000
+    "dloc": -99
   }
 }

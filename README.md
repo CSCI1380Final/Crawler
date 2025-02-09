@@ -79,29 +79,3 @@ distribution.all.comm.send(['sid'], {node: node, service: 'status', method: 'get
 # Results and Reflections
 
 > ...
-
-# M1: Serialization / Deserialization
-
-
-## Summary
-
-> Summarize your implementation, including key challenges you encountered. Remember to update the `report` section of the `package.json` file with the total number of hours it took you to complete each task of M1 (`hours`) and the lines of code per task.
-
-For m1, I have completed the serialilze and deserialize interfaces. The 
-serialize convert different type of object into Json string, and keep the meta data of the object after conversion. The deserialize restore the Json string into original object with its value. These two interfaces can be useful when transferring data through disk, network. One of the key challenges was to dealing with complex data structure, and I have fixed it by using recursive calls.
-
-
-My implementation comprises 1 software components, totaling 270 lines of code with tests. Key challenges included dealing with complex data structure,.
-
-
-## Correctness & Performance Characterization
-
-
-> Describe how you characterized the correctness and performance of your implementation
-
-
-*Correctness*: I wrote 5 tests; these tests take  to execute. This includes objects with 1.475s.
-
-
-*Performance*: The latency of various subsystems is described in the `"latency"` portion of package.json. The characteristics of my development machines are summarized in the `"dev"` portion of package.json.
-
