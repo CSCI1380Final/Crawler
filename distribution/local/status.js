@@ -10,7 +10,24 @@ global.moreStatus = {
 };
 
 status.get = function(configuration, callback) {
-  callback = callback || function() { };
+  callback = callback || function(e, v) {
+    if (e) {
+      console.error(e)
+    }else{
+      console.log(v)
+    }
+   };
+  if (configuration === "heapTotal" || configuration === "heapUsed") {
+    return callback(null, process.memoryUsage()[configuration]);
+  }
+
+  if (configuration === "nid") return callback(null, global.moreStatus.nid);
+  if (configuration === "sid") return callback(null, global.moreStatus.sid);
+  if (configuration === "counts") return callback(null, global.moreStatus.counts);
+  if (configuration === "ip") return callback(null, global.nodeConfig.ip);
+  if (configuration === "port") return callback(null, global.nodeConfig.port);
+
+  return callback(new Error(`Error status configuration: ${configuration}`), null);
 };
 
 
