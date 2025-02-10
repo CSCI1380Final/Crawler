@@ -1,7 +1,8 @@
 const http = require('http');
 const url = require('url');
 const log = require('../util/log');
-
+const { serialize, deserialize } = require('../util/serialization');
+const routes = require('./routes');
 
 /*
     The start function will be called to start your node.
@@ -15,6 +16,11 @@ const start = function(callback) {
     /* Your server will be listening for PUT requests. */
 
     // Write some code...
+    // 405 status is method not allowed code
+    if (req.method !== 'PUT') {
+      res.writeHead(405, { 'Content-Type': 'application/json' });
+      return res.end(serialize(new Error("Not put method")));
+    }
 
 
     /*
@@ -24,7 +30,15 @@ const start = function(callback) {
 
 
     // Write some code...
-
+      const parsedUrl = url.parse(req.url, true);
+      const path = parsedUrl.pathname.split('/').filter(Boolean);
+      if (path.length < 3) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        return res.end(serialize(new Error("Invalid path")));
+      }
+      const gid = path[0]
+      const serviceName = path[1]
+      const methodName = path[2]
 
     /*
 
@@ -44,11 +58,12 @@ const start = function(callback) {
     // Write some code...
 
     let body = [];
-
+     
     req.on('data', (chunk) => {
+      body.push(chunk) // when receive data
     });
-
-    req.on('end', () => {
+ 
+    req.on('end', () => { // when finishing reciving data
 
       /* Here, you can handle the service requests.
 =======
@@ -70,9 +85,35 @@ const start = function(callback) {
       */
 
       // Write some code...
+      let requestData;
+      try {
+        body = Buffer.concat(body).toString();
+        requestData = deserialize(body); 
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        return res.end(serialize(err));
+      }
+       if (!Array.isArray(requestData)) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        return res.end(serialize(err));
+      }
+      routes.get(serviceName, (err, service) => {
+        if (err || !service || typeof service[methodName] !== 'function') {
+          res.writeHead(404, { 'Content-Type': 'application/json' });
+          return res.end(serialize(err));
+        }
 
+        // call the service method
+        service[methodName](...requestData, (error, result) => {
+          if (error) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            return res.end(serialize(error));
+          }
 
-
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(serialize(result)); 
+        });
+      });
     });
   });
 
