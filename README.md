@@ -79,3 +79,53 @@ distribution.all.comm.send(['sid'], {node: node, service: 'status', method: 'get
 # Results and Reflections
 
 > ...
+
+# M1: Serialization / Deserialization
+## Summary
+> Summarize your implementation, including key challenges you encountered. Remember to update the `report` section of the `package.json` file with the total number of hours it took you to complete each task of M1 (`hours`) and the lines of code per task.
+For m1, I have completed the serialilze and deserialize interfaces. The 
+serialize convert different type of object into Json string, and keep the meta data of the object after conversion. The deserialize restore the Json string into original object with its value. These two interfaces can be useful when transferring data through disk, network. One of the key challenges was to dealing with complex data structure, and I have fixed it by using recursive calls.
+My implementation comprises 1 software components, totaling 270 lines of code with tests. Key challenges included dealing with complex data structure,.
+## Correctness & Performance Characterization
+> Describe how you characterized the correctness and performance of your implementation
+*Correctness*: I wrote 5 tests; these tests take  to execute. This includes objects with 1.475s.
+*Performance*: The latency of various subsystems is described in the `"latency"` portion of package.json. The characteristics of my development machines are summarized in the `"dev"` portion of package.json.
+
+
+# M2: Actors and Remote Procedure Calls (RPC)
+
+
+## Summary
+
+> Summarize your implementation, including key challenges you encountered. Remember to update the `report` section of the `package.json` file with the total number of hours it took you to complete each task of M2 (`hours`) and the lines of code per task.
+
+- I have complete the status service, allow request to inspct the information of the current node
+
+- I have complete the routes service, allow to register any service with its method from local or through RPC
+
+- I have complete the communication service, allow to send RPC through HTTP protocal. The function's argument are passed using the message array. It serialize the request during sending and deserialize the response when receiving.
+
+
+My implementation comprises `3` software components, totaling `300` lines of code. Key challenges included `<1, 2, 3 + how you solved them>`.
+
+Key challenges including passing the argument to RPC. I have figured out by checking the documents and find out the argument are from message array.
+
+
+## Correctness & Performance Characterization
+
+> Describe how you characterized the correctness and performance of your implementation
+
+
+*Correctness*: I wrote `8` tests in student tests; these tests take `0.878s` to execute.
+
+
+*Performance*: I characterized the performance of comm and RPC by sending 1000 service requests in a tight loop. Average throughput and latency is recorded in `package.json`.
+
+
+## Key Feature
+
+> How would you explain the implementation of `createRPC` to someone who has no background in computer science — i.e., with the minimum jargon possible?
+
+If there are two computer, computer 1 and computer 2. Computer 2 has 
+much better resources and we would want to execute our tasks at computer 2.
+Therefore, we have registered our tasks at computer 2. We then only need to send the message with tasks parameter from computer 1 to execute the the tasks at computer 2, and computer 2 will send back the results to computer 1.
