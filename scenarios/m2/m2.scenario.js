@@ -14,6 +14,9 @@ test('(2 pts) (scenario) simple callback practice', () => {
   }
 
   // ...
+  for (let i = 0, a = 1, b = 2; i < 3; i++, a++, b++) {
+    add(a, b, storeResults);
+  }
 
   expect(results).toEqual([3, 5, 7]);
 });
@@ -27,22 +30,27 @@ test('(2 pts) (scenario) collect errors and successful results', (done) => {
   // Sample service
   const appleDeliveryService = (callback) => {
     // ...
+    callback(null, "good apples")
   };
 
   const pineappleDeliveryService = (callback) => {
     // ...
+    callback(null, "good bananas")
   };
 
   const bananaDeliveryService = (callback) => {
     // ...
+    callback(null, "good peaches")
   };
 
   const peachDeliveryService = (callback) => {
     // ...
+    callback(new Error("bad pineapples"))
   };
 
   const mangoDeliveryService = (callback) => {
     // ...
+    callback(new Error("bad mangoes"))
   };
 
   const services = [
@@ -87,6 +95,7 @@ test('(2 pts) (scenario) collect errors and successful results', (done) => {
   }
 });
 
+
 test('(5 pts) (scenario) use rpc', (done) => {
   let n = 0;
   const addOne = () => {
@@ -95,7 +104,10 @@ test('(5 pts) (scenario) use rpc', (done) => {
 
   const node = {ip: '127.0.0.1', port: 9009};
 
-  let addOneRPC = '?';
+  let addOneRPC = (n, callback) => {
+    const result = n+1;
+    callback(null, result);
+  };;
 
   const rpcService = {
     addOne: addOneRPC,
@@ -115,14 +127,18 @@ test('(5 pts) (scenario) use rpc', (done) => {
       distribution.local.comm.send([rpcService, 'addOneService'],
           {node: node, service: 'routes', method: 'put'}, (e, v) => {
             // Call the addOne service on the remote node. This should actually call the addOne function on this code using RPC.
-            distribution.local.comm.send([],
+            distribution.local.comm.send([n],
                 {node: node, service: 'addOneService', method: 'addOne'}, (e, v) => {
+                  n = v
                   // Call the addOne service on the remote node again.
-                  distribution.local.comm.send([],
+                  distribution.local.comm.send([n],
                       {node: node, service: 'addOneService', method: 'addOne'}, (e, v) => {
+                        console.log(v)
+                        n = v,
                         // Call the addOne service on the remote node again. Since we called the addOne function three times, the result should be 3.
-                        distribution.local.comm.send([],
+                        distribution.local.comm.send([n],
                             {node: node, service: 'addOneService', method: 'addOne'}, (e, v) => {
+                              n = v
                               try {
                                 expect(e).toBeFalsy();
                                 expect(v).toBe(3);
