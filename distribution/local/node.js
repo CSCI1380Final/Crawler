@@ -79,6 +79,15 @@ const start = function(callback) {
       /* Here, you can handle the service requests.
 >>>>>>> 505414a (Update from https://github.com/brown-cs1380/project/commit/4489eea13d1ecd04998e6432f5074c619c87cc7f)
 >>>>>>> 29afd06 (Update from https://github.com/brown-cs1380/project/commit/4489eea13d1ecd04998e6432f5074c619c87cc7f)
+=======
+
+    req.on('data', (chunk) => {
+    });
+
+    req.on('end', () => {
+
+      /* Here, you can handle the service requests.
+>>>>>>> origin/main
       Use the local routes service to get the service you need to call.
       You need to call the service with the method and arguments provided in the request.
       Then, you need to serialize the result and send it back to the caller.
@@ -102,7 +111,6 @@ const start = function(callback) {
           res.writeHead(404, { 'Content-Type': 'application/json' });
           return res.end(serialize(err));
         }
-
         // call the service method
         service[methodName](...requestData, (error, result) => {
           if (error) {
@@ -114,6 +122,7 @@ const start = function(callback) {
           res.end(serialize(result)); 
         });
       });
+
     });
   });
 
