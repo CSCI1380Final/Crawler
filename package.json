@@ -3,7 +3,7 @@
   "version": "0.1.11",
   "description": "A library for building distributed systems.",
   "main": "distribution.js",
-  "useLibrary": true,
+  "useLibrary": false,
   "directories": {
     "test": "test"
   },
@@ -22,8 +22,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "yargs": "^17.7.2",
-    "@brown-ds/distribution": "latest"
+    "@brown-ds/distribution": "^0.1.16",
+    "yargs": "^17.7.2"
   },
   "report": {
     "hours": 25,
@@ -34,12 +34,20 @@
       "ssd-gb": 256
     },
     "throughput": {
-      "dev": [4.59],
-      "aws": [3.02]
+      "dev": [
+        4.59
+      ],
+      "aws": [
+        3.02
+      ]
     },
     "latency(ms)": {
-      "dev": [218],
-      "aws": [331]
+      "dev": [
+        218
+      ],
+      "aws": [
+        331
+      ]
     },
     "dloc": 3000
   }
