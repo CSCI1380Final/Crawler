@@ -1,6 +1,10 @@
 {
   "name": "cs1380-stencil",
+<<<<<<< HEAD
   "version": "0.1.11",
+=======
+  "version": "0.1.19",
+>>>>>>> origin/main
   "description": "A library for building distributed systems.",
   "main": "distribution.js",
   "useLibrary": false,
