@@ -1,6 +1,9 @@
 const log = require('../util/log');
 
-const status = {};
+const status = {
+  ...global.nodeConfig,
+  ...global.moreStatus
+};
 
 global.moreStatus = {
   sid: global.distribution.util.id.getSID(global.nodeConfig),
@@ -30,10 +33,7 @@ status.get = function(configuration, callback) {
 };
 
 
-status.spawn = function(configuration, callback) {
-};
-
-status.stop = function(callback) {
-};
+status.spawn = require('@brown-ds/distribution/distribution/local/status').spawn; 
+status.stop = require('@brown-ds/distribution/distribution/local/status').stop; 
 
 module.exports = status;

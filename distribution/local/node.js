@@ -1,7 +1,7 @@
 const http = require('http');
 const url = require('url');
 const log = require('../util/log');
-const { serialize, deserialize } = require('../util/serialization');
+const { serialize, deserialize } = require("@brown-ds/distribution/distribution/util/util");
 const routes = require('./routes');
 
 /*
