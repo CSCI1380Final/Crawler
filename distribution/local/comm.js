@@ -3,8 +3,6 @@
 const http = require('http');
 const { serialize, deserialize } = require('../util/serialization');
 
-
-
 /**
  * @typedef {Object} Target
  * @property {string} service
@@ -19,6 +17,13 @@ const { serialize, deserialize } = require('../util/serialization');
  * @return {void}
  */
 function send(message, remote, callback) {
+    callback = callback || function(e, v) {
+        if (e) {
+        console.error(e)
+        }else{
+        console.log(v)
+        }
+    }
     if (!Array.isArray(message)) {
         return callback(new Error("Message is not an array"));
     }
@@ -30,8 +35,10 @@ function send(message, remote, callback) {
         return callback(new Error("Invalid remote object."));
     }
 
-    const targetNode = remote.node;
-    const urlPath = `/${global.moreStatus.nid}/${remote.service}/${remote.method}`;
+     const targetNode = remote.node;
+
+     const gid = remote.gid || "local";
+     const urlPath = `/${gid}/${remote.service}/${remote.method}`;
     // serialize message as string
     const requestData = serialize(message); 
 

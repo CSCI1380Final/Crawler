@@ -40,59 +40,13 @@ const start = function(callback) {
       const serviceName = path[1]
       const methodName = path[2]
 
-    /*
-
-      A common pattern in handling HTTP requests in Node.js is to have a
-      subroutine that collects all the data chunks belonging to the same
-      request. These chunks are aggregated into a body variable.
-
-      When the req.on('end') event is emitted, it signifies that all data from
-      the request has been received. Typically, this data is in the form of a
-      string. To work with this data in a structured format, it is often parsed
-      into a JSON object using JSON.parse(body), provided the data is in JSON
-      format.
-
-      Our nodes expect data in JSON format.
-  */
-
-    // Write some code...
-
     let body = [];
      
     req.on('data', (chunk) => {
       body.push(chunk) // when receive data
     });
  
-    req.on('end', () => { // when finishing reciving data
-
-      /* Here, you can handle the service requests.
-=======
-      /* Here, you can handle the service requests.
-=======
-<<<<<<< HEAD
-<<<<<<< HEAD
-      /* Here, you can handle the service requests.
-=======
-      /* Here, you can handle the service requests. 
->>>>>>> e962813 (Update from https://github.com/brown-cs1380/project/commit/142540f5b6b6295f9011be51733d3db4cc9a79cc)
-=======
-      /* Here, you can handle the service requests.
->>>>>>> 505414a (Update from https://github.com/brown-cs1380/project/commit/4489eea13d1ecd04998e6432f5074c619c87cc7f)
->>>>>>> 29afd06 (Update from https://github.com/brown-cs1380/project/commit/4489eea13d1ecd04998e6432f5074c619c87cc7f)
-=======
-
-    req.on('data', (chunk) => {
-    });
-
-    req.on('end', () => {
-
-      /* Here, you can handle the service requests.
->>>>>>> origin/main
-      Use the local routes service to get the service you need to call.
-      You need to call the service with the method and arguments provided in the request.
-      Then, you need to serialize the result and send it back to the caller.
-      */
-
+    req.on('end', () => { 
       // Write some code...
       let requestData;
       try {
@@ -106,7 +60,7 @@ const start = function(callback) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         return res.end(serialize(err));
       }
-      routes.get(serviceName, (err, service) => {
+      routes.get({ service: serviceName, gid: gid }, (err, service) => {
         if (err || !service || typeof service[methodName] !== 'function') {
           res.writeHead(404, { 'Content-Type': 'application/json' });
           return res.end(serialize(err));
