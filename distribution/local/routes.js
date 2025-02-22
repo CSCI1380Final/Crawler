@@ -6,47 +6,51 @@ const routes = {};
  * @param {Callback} callback
  * @return {void}
  */
+
 function get(configuration, callback) {
   callback = callback || function(e, v) {
-        if (e) {
-        console.error(e)
-        }else{
-        console.log(v)
-        }
-   };
-    let service
-    let gid
-    if (configuration instanceof Object) {
-      service = configuration.service;
-      gid = configuration.gid || "local"; // by default it should consider local
+    if (e) {
+      console.error(e);
     } else {
-      service = configuration;
-      gid = "local";
+      console.log(v);
     }
-    let calledService;
-  // forward to local
-  if (gid === "local") {
-    if (service in routes) {
-      calledService = routes[service];
-    }
-  // forward to other nodes
+  };
+
+  let service, gid;
+  if (configuration instanceof Object) {
+    service = configuration.service;
+    gid = configuration.gid || "local";
   } else {
-    if (
-      global.distribution &&
-      global.distribution[gid] &&
-      service in global.distribution[gid]
-    ) {
-      calledService = global.distribution[gid][service];
+    service = configuration;
+    gid = "local";
+  }
+  
+  let result;
+  // check local first
+  if (gid === "local" && service in routes) {
+    if (service in routes) {
+      result = routes[service];
     }
+  } 
+  // nonlocal,  global.distribution
+  else if (global.distribution &&
+           global.distribution[gid] &&
+           service in global.distribution[gid]) {
+    result = global.distribution[gid][service];
   }
-  if (!calledService) {
-    return callback(
-      new Error(`service "${service}" not found in group "${gid}"`),
-      null
-    );
+  
+  // does not exist in your routes and call the corresponding RPC if that exists
+  else if (global.toLocal[service]) {
+    result = { call: global.toLocal[service] };
   }
-  return callback(null, calledService);
+  
+  if (!result) {
+    return callback(new Error(`service "${service}" not found in group "${gid}"`), null);
+  }
+  callback(null, result);
+  return result;
 }
+
 
 
 /**

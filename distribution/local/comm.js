@@ -1,7 +1,8 @@
 /** @typedef {import("../types").Callback} Callback */
 /** @typedef {import("../types").Node} Node */
 const http = require('http');
-const { serialize, deserialize } = require("@brown-ds/distribution/distribution/util/util");
+const { serialize, deserialize } = require('../util/serialization');
+const log = require("../util/log");
 
 /**
  * @typedef {Object} Target
@@ -11,70 +12,72 @@ const { serialize, deserialize } = require("@brown-ds/distribution/distribution/
  */
 
 /**
- * @param {Array} message
- * @param {Target} remote
- * @param {Callback} [callback]
- * @return {void}
+ * 
+ * @param {Array} message 
+ * @param {Target} remote 
+ * @param {Callback} [callback] 
  */
 function send(message, remote, callback) {
-    callback = callback || function(e, v) {
-        if (e) {
-        console.error(e)
-        }else{
-        console.log(v)
-        }
+  callback = callback || function(e, v) {
+    if (e) {
+      console.error(e)
+    }else{
+      console.log(v)
     }
-    if (!Array.isArray(message)) {
-        return callback(new Error("Message is not an array"));
+   };
+  let data;
+  try {
+    data = serialize(message);
+  } catch (error) {
+    return callback(error);
+  }
+  let { node: { ip, port }, service, method } = remote;
+  let gid = remote.gid || "local";
+  
+  const urlPath = `/${ip}:${port}/${gid}/${service}/${method}`;
+  
+//   log("options are: " + JSON.stringify({ ip, port, urlPath }) + " data: " + data);
+  
+  const options = {
+    hostname: ip,
+    port: port,
+    method: 'PUT',
+    path: urlPath,
+    headers: {
+      'Content-Type': 'application/json'
     }
-
-    if (!remote || typeof remote !== "object") {
-        return callback(new Error("Remote must be an object"));
-    }
-    if (!remote.node || !remote.service || !remote.method) {
-        return callback(new Error("Invalid remote object."));
-    }
-
-     const targetNode = remote.node;
-
-     const gid = remote.gid || "local";
-     const urlPath = `/${gid}/${remote.service}/${remote.method}`;
-    // serialize message as string
-    const requestData = serialize(message); 
-
-    const options = {
-        hostname: targetNode.ip,
-        port: targetNode.port,
-        path: urlPath,
-        method: 'PUT',
-        headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(requestData),
-        },
-    };
-
-    const req = http.request(options, (res) => {
-        let responseData = '';
-        res.on('data', (chunk) => {
-        responseData += chunk;
-        });
-
-        res.on('end', () => {
-        try {
-            const jsonResponse = deserialize(responseData); 
-            if (jsonResponse instanceof Error) {
-                callback(jsonResponse, null);
-            }else{
-                callback(null, jsonResponse);
-            }
-        } catch (error) {
-            callback(new Error("something wrong with deserializing"));
-        }
-        });
+  };
+  
+  const req = http.request(options, (res) => {
+    let chunks = [];
+    res.on("data", (chunk) => {
+      chunks.push(chunk);
+    });
+    res.on("end", () => {
+      let responseStr = Buffer.concat(chunks).toString();
+      let responseObj;
+      try {
+        responseObj = deserialize(responseStr);
+      } catch (error) {
+        return callback(new Error("Error during deserialization"));
+      }
+      log("response: " + serialize(responseObj));
+      if (res.statusCode !== 200) {
+        return callback(new Error(`Request failed: ${JSON.stringify(responseObj.error)}`), responseObj.data);
+      } else {
+        return callback(responseObj.error, responseObj.data);
+      }
+    });
+    res.on("error", (err) => {
+      console.error(err);
+    });
   });
-
-    req.write(requestData);
-    req.end();
+  
+  req.on("error", (err) => {
+    callback(err);
+  });
+  req.write(data);
+  req.end();
 }
 
-module.exports = {send};
+module.exports = { send };
