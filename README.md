@@ -129,3 +129,47 @@ Key challenges including passing the argument to RPC. I have figured out by chec
 If there are two computer, computer 1 and computer 2. Computer 2 has 
 much better resources and we would want to execute our tasks at computer 2.
 Therefore, we have registered our tasks at computer 2. We then only need to send the message with tasks parameter from computer 1 to execute the the tasks at computer 2, and computer 2 will send back the results to computer 1.
+
+
+# M3: Node Groups & Gossip Protocols
+
+## Summary
+
+> Summarize your implementation, including key challenges you encountered. Remember to update the `report` section of the `package.json` file with the total number of hours it took you to complete each task of M3 (`hours`) and the lines of code per task.
+
+- I have complete local groups service. Through this, I have maintainined a group identifier (GID) to a set of nodes. Each node contains two groups by default, local and all. 
+
+- I have expanded the comm.send and routes.get methods to support passing in an optional gid parameter, so as to construct an HTTP request can be send to a group from local perspective
+
+- I implemented a distributed comm.send method that sends requests to all members of a node group in parallel.
+
+- I have done distributed status.get request to all nodes in the group through distributed call, and each node returns its own status information
+
+- I extended the local groups and routes services to make them distributed,  which is helpful to
+sync the info for a global update
+
+My implementation comprises `5` new software components, totaling `300` added lines of code over the previous implementation. Key challenges included `<1, 2, 3 + how you solved them>`.
+
+- Key challenge is to completing local routes.get. There are many errors have happened. One scenario is to call the corresponding RPC if that exists if the service does not exist in local routes
+
+
+## Correctness & Performance Characterization
+
+> Describe how you characterized the correctness and performance of your implementation
+
+
+*Correctness* -- number of tests and time they take.
+
+I have passed all of the 6 tests section except the last scenario gossip test. It 
+takes average 7 s for each test section. 
+
+*Performance* -- spawn times (all students) and gossip (lab/ec-only).
+
+It takes about 4 seconds to spawn 6 nodes.
+
+
+## Key Feature
+
+> What is the point of having a gossip protocol? Why doesn't a node just send the message to _all_ other nodes in its group?
+
+It prevent the cost of sending message for the source node to send message to all node. Using gossip protocal only require us to send log n number of nodes, and each nodes will pick another log n number to spread the message. The key is that this sending work is distributed across all nodes, rather than a single node taking the entire load.
