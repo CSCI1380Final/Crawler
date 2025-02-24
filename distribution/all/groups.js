@@ -4,9 +4,26 @@ const groups = function(config) {
   const distribution = global.distribution; // Use global.distribution to access initialized services in the entire distributed system.
 
   return {
-    put: (config, group, callback) => {
+    put: (cfg, group, callback) => {
+      callback = callback || function(e, v) {
+        if (e) console.error(e);
+        else console.log(v);
+      };
+
+      let effectiveCfg;
+      if (typeof cfg === 'string') {
+        effectiveCfg = { gid: cfg };
+      } else if (typeof cfg === 'object') {
+        effectiveCfg = {
+          gid: cfg.gid || context.gid,
+          hash: cfg.hash, 
+        };
+      } else {
+        effectiveCfg = { gid: context.gid };
+      }
+      
       distribution[context.gid].comm.send(
-        [config, group],
+        [effectiveCfg, group],
         { service: "groups", method: "put", gid: context.gid },
         callback
       );

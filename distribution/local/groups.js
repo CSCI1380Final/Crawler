@@ -20,28 +20,35 @@ groups.get = function(name, callback) {
 };
 
 groups.put = function(config, group, callback) {
-    callback = callback || function(e, v) {
-        if (e) {
-        console.error(e)
-        }else{
-        console.log(v)
-        }
+  callback = callback || function(e, v) {
+    if (e) {
+      console.error(e);
+    } else {
+      console.log(v);
     }
-    let configuration = config;
-    if (configuration instanceof Object) {
-        configuration = config.gid || "local";
-    }
-    global.distribution[configuration] = {
-        status: require('../all/status')({gid: configuration}),
-        comm: require('../all/comm')({gid: configuration}),
-        gossip: require('../all/gossip')({gid: configuration}),
-        groups: require('../all/groups')({gid: configuration}),
-        routes: require('../all/routes')({gid: configuration}),
-        mem: require('../all/mem')({gid: configuration}),
-        store: require('../all/store')({gid: configuration}),
-    };
-    groups[configuration] = group;
-    callback(undefined, group)
+  };
+
+  let effectiveGid, effectiveHash;
+  if (typeof config === 'object') {
+    effectiveGid = config.gid || "local";
+    effectiveHash = config.hash; 
+  } else {
+    effectiveGid = config;
+  }
+
+  global.distribution[effectiveGid] = {
+    status: require('../all/status')({ gid: effectiveGid }),
+    comm: require('../all/comm')({ gid: effectiveGid }),
+    gossip: require('../all/gossip')({ gid: effectiveGid }),
+    groups: require('../all/groups')({ gid: effectiveGid }),
+    routes: require('../all/routes')({ gid: effectiveGid }),
+    // mkae hash to mem/store
+    mem: require('../all/mem')({ gid: effectiveGid, hash: effectiveHash }),
+    store: require('../all/store')({ gid: effectiveGid, hash: effectiveHash }),
+  };
+
+  groups[effectiveGid] = group;
+  callback(undefined, group);
 };
 
 groups.del = function(name, callback) {

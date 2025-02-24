@@ -25,33 +25,40 @@ function get(configuration, callback) {
     gid = "local";
   }
   
+  console.log('[routes.get] Received request for service:', service, 'in group:', gid);
+  console.log('[routes.get] Current local routes keys:', Object.keys(routes));
+
   let result;
-  // check local first
-  if (gid === "local" && service in routes) {
-    if (service in routes) {
-      result = routes[service];
-    }
+  if (gid === "local" && (service in routes)) {
+    console.log('[routes.get] Found service in local routes:', service);
+    result = routes[service];
   } 
-  // nonlocal,  global.distribution
   else if (global.distribution &&
            global.distribution[gid] &&
-           service in global.distribution[gid]) {
+           (service in global.distribution[gid])) {
+    console.log('[routes.get] Found service in global.distribution:', gid, service);
+    console.log('[routes.get] Available services in group', gid, 'are:', Object.keys(global.distribution[gid]));
     result = global.distribution[gid][service];
   }
-  
-  // does not exist in your routes and call the corresponding RPC if that exists
-  else if (global.toLocal[service]) {
+  else if (global.toLocal && global.toLocal[service]) {
+    console.log('[routes.get] Found service in global.toLocal:', service);
     result = { call: global.toLocal[service] };
   }
   
   if (!result) {
+    console.error(`[routes.get] Could not find service "${service}" in group "${gid}"`);
+    if (global.distribution && global.distribution[gid]) {
+      console.error('[routes.get] group object keys are:', Object.keys(global.distribution[gid]));
+    } else {
+      console.error('[routes.get] group object does not exist or is empty for gid:', gid);
+    }
     return callback(new Error(`service "${service}" not found in group "${gid}"`), null);
   }
+
+  console.log('[routes.get] Returning service object for service:', service, 'group:', gid);
   callback(null, result);
   return result;
 }
-
-
 
 /**
  * @param {object} service

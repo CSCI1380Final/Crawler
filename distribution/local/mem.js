@@ -1,58 +1,79 @@
-const crypto = require('crypto');
+const { id } = global.distribution.util;  
 
 const store = {};
 
-function put(state, configuration, callback) {
-    callback = callback || function(e, v) {
-        if (e) {
-        console.error(e)
-        }else{
-        console.log(v)
-        }
-    };
-    try {
-        let key = configuration;
-        // when key is null
-        if (key == null) {
-        key = crypto.createHash('sha256').update(JSON.stringify(state)).digest('hex');
-        }
-        store[key] = state;
-        callback(null, state);
-    } catch (error) {
-        callback(error, null);
+function getEffectiveKey(configuration, state) {
+  if (configuration == null) {
+    const autoKey = id.getID(state);
+    return `local:${autoKey}`;
+  }
+  if (typeof configuration === 'object') {
+    if (!configuration.key) {
+      throw new Error("Configuration object must contain a 'key' property");
     }
-};
+    const gid = configuration.gid || "local";
+    return `${gid}:${configuration.key}`;
+  }
+  return `local:${configuration}`;
+}
+
+function put(state, configuration, callback) {
+  callback = callback || function(e, v) {
+    if (e) {
+      console.error(e);
+    } else {
+      console.log(v);
+    }
+  };
+  try {
+    const effectiveKey = getEffectiveKey(configuration, state);
+    store[effectiveKey] = state;
+    callback(null, state);
+  } catch (error) {
+    callback(error, null);
+  }
+}
 
 function get(configuration, callback) {
-    callback = callback || function(e, v) {
-        if (e) {
-        console.error(e)
-        }else{
-        console.log(v)
-        }
-    };
-     if (configuration in store) {
-        callback(null, store[configuration]);
+  callback = callback || function(e, v) {
+    if (e) {
+      console.error(e);
     } else {
-        callback(new Error('Not found in memory during get'), null);
+      console.log(v);
     }
+  };
+  try {
+    const effectiveKey = getEffectiveKey(configuration);
+    if (effectiveKey in store) {
+      callback(null, store[effectiveKey]);
+    } else {
+      callback(new Error('Not found in memory during get'), null);
+    }
+  } catch (error) {
+    callback(error, null);
+  }
 }
 
 function del(configuration, callback) {
-    callback = callback || function(e, v) {
-        if (e) {
-        console.error(e)
-        }else{
-        console.log(v)
-        }
-    };
-    if (configuration in store) {
-        const value = store[configuration];
-        delete store[configuration];
-        callback(null, value);
+  callback = callback || function(e, v) {
+    if (e) {
+      console.error(e);
     } else {
-        callback(new Error('Not found during delete'), null);
+      console.log(v);
     }
-};
+  };
+  try {
+    const effectiveKey = getEffectiveKey(configuration);
+    if (effectiveKey in store) {
+      const value = store[effectiveKey];
+      delete store[effectiveKey];
+      callback(null, value);
+    } else {
+      callback(new Error('Not found during delete'), null);
+    }
+  } catch (error) {
+    callback(error, null);
+  }
+}
 
-module.exports = {put, get, del};
+module.exports = { put, get, del };
