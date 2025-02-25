@@ -55,6 +55,28 @@ function naiveHash(kid, nids) {
 }
 
 function consistentHash(kid, nids) {
+  const kidNum = BigInt('0x' + kid);
+  // create the ring
+  const items = nids.map(nid => ({
+    type: 'nid',
+    id: nid,
+    num: BigInt('0x' + nid)
+  }));
+  items.push({
+    type: 'kid',
+    id: kid,
+    num: kidNum
+  });
+ // sort all, find the target
+  const sorted = items.slice().sort((a, b) => {
+    if (a.num > b.num) return 1;
+    if (a.num < b.num) return -1;
+    return 0;
+  });
+  const index = sorted.findIndex(item => item.type === 'kid' && item.id === kid);
+  const targetIndex = (index + 1) % sorted.length;
+  const targetItem = sorted[targetIndex];
+  return targetItem.id;
 }
 
 
