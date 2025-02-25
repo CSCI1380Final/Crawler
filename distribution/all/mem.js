@@ -20,6 +20,8 @@ function mem(config) {
    * @param {function} callback
    */
   function routeRequest(method, state, key, callback) {
+    console.log("igid", context.gid)
+    console.log(context.hash)
     // 每次都获取组信息（不做缓存）
     groupsModule.get(context.gid, (err, nodesMap) => {
       if (err || !nodesMap) {
@@ -33,10 +35,12 @@ function mem(config) {
       // 若 key == null，用 state 做 sha256
       const effectiveKey = (key == null) ? id.getID(state) : key;
       const kid = id.getID(effectiveKey);
+      console.log("kid is", kid)
 
       // 通过 hash 决定要发送到哪个节点
       const targetNodeId = context.hash(kid, nodeIds);
       const targetNodeInfo = nodesMap[targetNodeId];
+       console.log(targetNodeInfo)
       if (!targetNodeInfo) {
         return callback(new Error(`Node "${targetNodeId}" not found in group "${context.gid}"`));
       }

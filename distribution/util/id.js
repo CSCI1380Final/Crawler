@@ -59,6 +59,18 @@ function consistentHash(kid, nids) {
 
 
 function rendezvousHash(kid, nids) {
+  let maxWeight = -1n; 
+  let chosenNid = null;
+  for (const nid of nids) {
+    const candidate = kid + nid;
+    const hashHex = crypto.createHash('sha256').update(candidate).digest('hex');
+    const weight = BigInt('0x' + hashHex);
+    if (weight > maxWeight) {
+      maxWeight = weight;
+      chosenNid = nid;
+    }
+  }
+  return chosenNid;
 }
 
 module.exports = {
