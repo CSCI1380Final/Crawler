@@ -67,6 +67,19 @@ function get(configuration, callback) {
   };
 
   try {
+    if (configuration == null) {
+      const gid = "local";
+      const prefix = gid + ":";
+      console.log("prefix is", prefix);
+      fs.readdir(baseDir, (err, files) => {
+        if (err) return callback(err, null);
+        const filtered = files.filter(file => file.startsWith(prefix));
+        const keys = filtered.map(file => file.slice(prefix.length));
+        console.log("keys are", keys);
+        return callback(null, keys);
+      });
+      return;
+    }
     if (typeof configuration === 'object' && configuration.key == null) {
       const gid = configuration.gid || "local";
       const prefix = gid + ":";
