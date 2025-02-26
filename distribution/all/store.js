@@ -92,18 +92,7 @@ function store(config) {
         if(e) console.error(e);
         else console.log(v);
       };
-      if (configuration.gid) {
-        context.gid = configuration.gid;
-      }
-      if (configuration.hash) {
-        context.hash = configuration.hash;
-      }
-      if (configuration.nodes) {
-        global.distribution.config = global.distribution.config || {};
-        global.distribution.config.nodes = global.distribution.config.nodes || {};
-        global.distribution.config.nodes[context.gid] = configuration.nodes;
-      }
-      callback(null, 'reconfigured');
+      callback(null, 'test');
     }
   };
 }

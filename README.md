@@ -173,3 +173,51 @@ It takes about 4 seconds to spawn 6 nodes.
 > What is the point of having a gossip protocol? Why doesn't a node just send the message to _all_ other nodes in its group?
 
 It prevent the cost of sending message for the source node to send message to all node. Using gossip protocal only require us to send log n number of nodes, and each nodes will pick another log n number to spread the message. The key is that this sending work is distributed across all nodes, rather than a single node taking the entire load.
+
+# M4: Distributed Storage
+
+
+## Summary
+
+> Summarize your implementation, including key challenges you encountered
+
+- I have complete the local store for memory and disk for operation put, get, delete
+
+- I have complete the distributed store for memory and disk for operation put, get, delete that 
+call local store service on each node
+
+- I have done extra credits to handle get operation with key is a null
+
+- I have done the consistent hash function and rendezvousHash hash function
+
+- I hvae measured throughput and latency for put and get operation locallly and on cloud env
+
+- The key challenges I have encountered is to handle the scenario when key is a null
+
+
+Remember to update the `report` section of the `package.json` file with the total number of hours it took you to complete each task of M4 (`hours`) and the lines of code per task.
+
+
+## Correctness & Performance Characterization
+
+> Describe how you characterized the correctness and performance of your implementation
+
+I have write a file called aws.js to start my server on aws. I then record the ip and port of the server, using another aws node to send request and measure the throughput and latency. I repeat this process locally, and then record my measurement on package.json.
+
+*Correctness* -- number of tests and time they take.
+
+I have passed all test except the last reconf scenario test. 
+
+The average time the test taken is 3s
+
+*Performance* -- insertion and retrieval.
+
+The get operation locally has average latency 3.20/ms and put operation locally has average latency 3.77/ms. 
+
+The get operation on aws has average latency 1.16/ms and put operation on aws has average latency 1.66/ms. 
+
+## Key Feature
+
+> Why is the `reconf` method designed to first identify all the keys to be relocated and then relocate individual objects instead of fetching all the objects immediately and then pushing them to their corresponding locations?
+
+If all objects are taken out first and then rewritten, many objects do not need to be migrated. After identifying the keys that need to be migrated, only these objects are migrated, thus reducing the amount of data transferred and the workload.

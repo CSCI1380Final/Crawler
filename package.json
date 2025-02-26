@@ -26,27 +26,39 @@
     "yargs": "^17.7.2"
   },
   "report": {
-    "hours": 25,
+    "hours": 20,
     "loc": 300,
     "dev": {
       "cpu-no": 8,
       "mem-gb": 16,
       "ssd-gb": 256
     },
-    "throughput": {
-      "dev": [
-        4.59
+    "throughput in seconds": {
+      "dev/put": [
+        265.39
       ],
-      "aws": [
-        3.02
+      "aws/put": [
+        601.68 
+      ],
+      "dev/get": [
+        312.89
+      ],
+      "aws/get": [
+        861.33
       ]
     },
     "latency(ms)": {
-      "dev": [
-        218
+      "dev/put": [
+        3.77
       ],
-      "aws": [
-        331
+      "aws/put": [
+        1.66
+      ],
+      "dev/get": [
+        3.20 
+      ],
+      "aws/get": [
+        1.16
       ]
     },
     "dloc": 3000
