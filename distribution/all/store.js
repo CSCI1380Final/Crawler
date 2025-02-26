@@ -6,44 +6,34 @@ function store(config) {
   context.gid = config.gid || 'all';
   context.hash = config.hash || id.naiveHash;
 
-  function getNodes(callback) {
-    groupsModule.get(context.gid, (err, nodesMap) => {
-      if (err || !nodesMap) {
-        return callback(new Error(`Failed to get nodes for group "${context.gid}"`));
-      }
-      const nodeIds = Object.keys(nodesMap);
-      if (!nodeIds.length) {
-        return callback(new Error(`No nodes in group "${context.gid}"`));
-      }
-      callback(null, nodeIds, nodesMap);
-    });
-  }
-
-  /**
-   * 
-   * @param {string} method - 'put' | 'get' | 'del'
-   * @param {any} state - store object for put
-   * @param {string|null} key 
-   * @param {function} callback
-   */
   function routeRequest(method, state, key, callback) {
-    getNodes((err, nodeIds, nodesMap) => {
-      if (err) return callback(err);
-
-      if (method === 'get' && key == null) {
+      console.log("igid", context.gid)
+      console.log(context.hash)
+      groupsModule.get(context.gid, (err, nodesMap) => {
+        if (err || !nodesMap) {
+          return callback(new Error(`Failed to get nodes for group "${context.gid}"`));
+        }
+        const nodeIds = Object.keys(nodesMap);
+        if (nodeIds.length === 0) {
+          return callback(new Error(`No nodes in group "${context.gid}"`));
+        }
+  
+        if (method === 'get' && key == null) {
         let remaining = nodeIds.length;
         let keysAgg = [];
         let errors = {};
         nodeIds.forEach((nodeId) => {
           const nodeInfo = nodesMap[nodeId];
-          // 发送请求给每个节点：假设远程本地 store 实现中，get(null) 返回该节点所有存储对象的 key 数组
+          console.log("node info is ", nodeInfo)
           global.distribution.local.comm.send(
-            [null],
+            [{ key: null, gid: context.gid }],
             { node: nodeInfo, service: 'store', method: 'get' },
             (err, result) => {
               if (err) {
+                console.log("error is ", err)
                 errors[nodeId] = err;
               } else if (Array.isArray(result)) {
+                console.log("the result", result)
                 keysAgg = keysAgg.concat(result);
               }
               remaining--;
@@ -55,37 +45,37 @@ function store(config) {
         });
         return;
       }
-
-      let effectiveKey;
-      if (key == null) {
-        effectiveKey = id.getID(state);
-      } else {
-        effectiveKey = key;
-      }
-
-      const kid = id.getID(effectiveKey);
-      const targetNodeId = context.hash(kid, nodeIds);
-      const targetNodeInfo = nodesMap[targetNodeId];
-      if (!targetNodeInfo) {
-        return callback(new Error(`Node "${targetNodeId}" not found in group "${context.gid}"`));
-      }
-
-      let message;
-      if (method === 'put') {
-        message = [state, key];
-      } else {
-        message = [effectiveKey];
-      }
-
-      const remoteSpec = {
-        node: targetNodeInfo,
-        service: 'store',
-        method
-      };
-
-      global.distribution.local.comm.send(message, remoteSpec, callback);
-    });
-  }
+  
+        const effectiveKey = (key == null) ? id.getID(state) : key;
+        const kid = id.getID(effectiveKey);
+        console.log("kid is", kid)
+  
+        const targetNodeId = context.hash(kid, nodeIds);
+        const targetNodeInfo = nodesMap[targetNodeId];
+         console.log(targetNodeInfo)
+        if (!targetNodeInfo) {
+          return callback(new Error(`Node "${targetNodeId}" not found in group "${context.gid}"`));
+        }
+  
+        let message;
+        if (method === 'put') {
+          message = [state, { key: effectiveKey, gid: context.gid }];
+        } else {
+          // get/del => [{ key, gid }]
+          message = [{ key: effectiveKey, gid: context.gid }];
+        }
+  
+        const remoteSpec = {
+          node: targetNodeInfo,
+          service: 'store',
+          method: method
+        };
+  
+        global.distribution.local.comm.send(message, remoteSpec, (error, value) => {
+          callback(error, value);
+        });
+      });
+    }
 
   return {
     get(configuration, callback) {

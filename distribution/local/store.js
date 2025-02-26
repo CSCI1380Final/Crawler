@@ -16,28 +16,21 @@ if (!fs.existsSync(baseDir)) {
 /**
  * prevent illegal char
  */
-function cleanFileName(key) {
-  return key.replace(/[^a-zA-Z0-9]/g, '');
-}
+
 
 function getEffectiveFileName(configuration, state) {
   if (configuration == null) {
     const autoKey = id.getID(state);
-
-    return cleanFileName(`local:${autoKey}`);
+    return `local:${autoKey}`;
   }
   if (typeof configuration === 'object') {
-    //  { key, gid } 
     if (!configuration.key) {
       throw new Error("Configuration object must contain a 'key' property");
     }
-    const gid = configuration.gid || 'local';
-    const combinedKey = `${gid}:${configuration.key}`;
-    return cleanFileName(combinedKey);
+    const gid = configuration.gid || "local";
+    return `${gid}:${configuration.key}`;
   }
-  // result as  => "local:configuration" for groups differentiation
-  const combinedKey = `local:${configuration}`;
-  return cleanFileName(combinedKey);
+  return `local:${configuration}`;
 }
 
 function put(state, configuration, callback) {
@@ -74,8 +67,8 @@ function get(configuration, callback) {
   };
 
   try {
-    if (configuration.key == null) {
-     const prefix = 'local';
+     if (configuration.key == null) {
+     const prefix = configuration.gid + ":"
      console.log("prefix is", prefix)
       fs.readdir(baseDir, (err, files) => {
         if (err) return callback(err, null);
