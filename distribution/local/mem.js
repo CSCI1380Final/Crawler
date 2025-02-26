@@ -43,6 +43,14 @@ function get(configuration, callback) {
     }
   };
   try {
+    if (configuration == null) {
+      const allKeys = Object.keys(store);
+      const strippedKeys = allKeys.map(k => {
+        const parts = k.split(':');
+        return parts.length > 1 ? parts.slice(1).join(':') : k;
+      });
+      return callback(null, strippedKeys);
+    }
     const effectiveKey = getEffectiveKey(configuration);
     if (effectiveKey in store) {
       callback(null, store[effectiveKey]);

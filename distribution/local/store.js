@@ -74,6 +74,18 @@ function get(configuration, callback) {
   };
 
   try {
+    if (configuration.key == null) {
+     const prefix = 'local';
+     console.log("prefix is", prefix)
+      fs.readdir(baseDir, (err, files) => {
+        if (err) return callback(err, null);
+        const filtered = files.filter(file => file.startsWith(prefix));
+        const keys = filtered.map(file => file.slice(prefix.length));
+        console.log("keys are", keys)
+        return callback(null, keys);
+      });
+      return;
+    }
     const fileName = getEffectiveFileName(configuration);
     const filePath = path.join(baseDir, fileName);
     fs.readFile(filePath, 'utf8', (err, data) => {

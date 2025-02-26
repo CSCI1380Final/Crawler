@@ -30,8 +30,32 @@ function store(config) {
     getNodes((err, nodeIds, nodesMap) => {
       if (err) return callback(err);
 
-      // if key==null，then state be sha256
-      // (与本地 store 做法一致)
+      if (method === 'get' && key == null) {
+        let remaining = nodeIds.length;
+        let keysAgg = [];
+        let errors = {};
+        nodeIds.forEach((nodeId) => {
+          const nodeInfo = nodesMap[nodeId];
+          // 发送请求给每个节点：假设远程本地 store 实现中，get(null) 返回该节点所有存储对象的 key 数组
+          global.distribution.local.comm.send(
+            [null],
+            { node: nodeInfo, service: 'store', method: 'get' },
+            (err, result) => {
+              if (err) {
+                errors[nodeId] = err;
+              } else if (Array.isArray(result)) {
+                keysAgg = keysAgg.concat(result);
+              }
+              remaining--;
+              if (remaining === 0) {
+                return callback({}, keysAgg);
+              }
+            }
+          );
+        });
+        return;
+      }
+
       let effectiveKey;
       if (key == null) {
         effectiveKey = id.getID(state);

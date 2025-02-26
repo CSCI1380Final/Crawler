@@ -26,6 +26,34 @@ function mem(config) {
         return callback(new Error(`No nodes in group "${context.gid}"`));
       }
 
+      if (method === 'get' && key == null) {
+      let remaining = nodeIds.length;
+      let keysAgg = [];
+      let errors = {};
+      nodeIds.forEach((nodeId) => {
+        const nodeInfo = nodesMap[nodeId];
+        console.log("node info is ", nodeInfo)
+        global.distribution.local.comm.send(
+          [null],
+          { node: nodeInfo, service: 'mem', method: 'get' },
+          (err, result) => {
+            if (err) {
+              console.log("error is ", err)
+              errors[nodeId] = err;
+            } else if (Array.isArray(result)) {
+              console.log("the result", result)
+              keysAgg = keysAgg.concat(result);
+            }
+            remaining--;
+            if (remaining === 0) {
+              return callback({}, keysAgg);
+            }
+          }
+        );
+      });
+      return;
+    }
+
       const effectiveKey = (key == null) ? id.getID(state) : key;
       const kid = id.getID(effectiveKey);
       console.log("kid is", kid)
@@ -57,6 +85,7 @@ function mem(config) {
     });
   }
 
+
   return {
     /**
      * get
@@ -87,24 +116,8 @@ function mem(config) {
     },
 
     reconf: (configuration, callback) => {
-      callback = callback || function(e, v) {
-        if (e) console.error(e);
-        else console.log(v);
-      };
-      if (configuration.gid) {
-        context.gid = configuration.gid;
-      }
-      if (configuration.hash) {
-        context.hash = configuration.hash;
-      }
-      if (configuration.nodes) {
-        global.distribution.config = global.distribution.config || {};
-        global.distribution.config.nodes = global.distribution.config.nodes || {};
-        global.distribution.config.nodes[context.gid] = configuration.nodes;
-      }
-      callback(null, 'reconfigured');
-    }
-  };
+    },
+  }
 }
 
 module.exports = mem;
