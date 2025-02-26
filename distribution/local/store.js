@@ -67,23 +67,19 @@ function get(configuration, callback) {
   };
 
   try {
-    // 仅当 configuration 是对象且其 key 为 null时，认为这是请求全组所有 key
     if (typeof configuration === 'object' && configuration.key == null) {
       const gid = configuration.gid || "local";
       const prefix = gid + ":";
       console.log("prefix is", prefix);
       fs.readdir(baseDir, (err, files) => {
         if (err) return callback(err, null);
-        // 只返回以当前组前缀开头的文件
         const filtered = files.filter(file => file.startsWith(prefix));
-        // 剥离前缀，返回实际的 key
         const keys = filtered.map(file => file.slice(prefix.length));
         console.log("keys are", keys);
         return callback(null, keys);
       });
       return;
     }
-    // 如果 configuration 是字符串，则直接使用它生成文件名
     const fileName = getEffectiveFileName(configuration);
     const filePath = path.join(baseDir, fileName);
     fs.readFile(filePath, 'utf8', (err, data) => {
