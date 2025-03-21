@@ -45,6 +45,7 @@ groups.put = function(config, group, callback) {
     // mkae hash to mem/store
     mem: require('../all/mem')({ gid: effectiveGid, hash: effectiveHash }),
     store: require('../all/store')({ gid: effectiveGid, hash: effectiveHash }),
+    mr: require("../all/mr")({ gid: effectiveGid }),
   };
 
   groups[effectiveGid] = group;

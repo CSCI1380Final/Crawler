@@ -55,27 +55,29 @@ function naiveHash(kid, nids) {
 }
 
 function consistentHash(kid, nids) {
-  const kidNum = BigInt('0x' + kid);
-  // create the ring
-  const items = nids.map(nid => ({
-    type: 'nid',
-    id: nid,
-    num: BigInt('0x' + nid)
-  }));
+  const hashedKid = crypto.createHash("sha256").update(kid).digest("hex");
+  const kidNum = BigInt("0x" + hashedKid);
+
+  const items = nids.map(nid => {
+    const hashedNid = crypto.createHash("sha256").update(nid).digest("hex");
+    return {
+      type: 'nid',
+      id: nid,
+      num: BigInt("0x" + hashedNid)
+    };
+  });
+
   items.push({
     type: 'kid',
     id: kid,
     num: kidNum
   });
- // sort all, find the target
-  const sorted = items.slice().sort((a, b) => {
-    if (a.num > b.num) return 1;
-    if (a.num < b.num) return -1;
-    return 0;
-  });
-  const index = sorted.findIndex(item => item.type === 'kid' && item.id === kid);
-  const targetIndex = (index + 1) % sorted.length;
-  const targetItem = sorted[targetIndex];
+
+  items.sort((a, b) => (a.num > b.num ? 1 : (a.num < b.num ? -1 : 0)));
+
+  const index = items.findIndex(item => item.type === 'kid' && item.id === kid);
+  const targetIndex = (index + 1) % items.length;
+  const targetItem = items[targetIndex];
   return targetItem.id;
 }
 
