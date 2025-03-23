@@ -12,11 +12,11 @@ function mr(config) {
 
     if (!configuration || !configuration.keys) {
       console.error("[ERROR] No config or no keys.");
-      return cb(new Error("[MR] No config or no keys."));
+      return cb(new Error("[MR] No config or no keys."), false);
     }
 
-    const map_fn = configuration.map || ((k, v) => ({ [k]: v }));
-    const reduce_fn = configuration.reduce || ((k, vs) => ({ [k]: vs }));
+    const map_fn = configuration.map || null;
+    const reduce_fn = configuration.reduce || null;
 
     // mr id used for tasks
     const mrId = 'mr-' + getID(Math.random());
@@ -29,7 +29,7 @@ function mr(config) {
       (e, v) => {
         if (e) {
           console.error("[ERROR] Failed to register orchestrator route:", e);
-          return cb(new Error(`[ORCH] Failed to register orchestrator: ${e.message}`));
+          return cb(new Error(`[ORCH] Failed to register orchestrator: ${e.message}`), false);
         }
         console.log("[ORCH] Orchestrator route registered for", mrId);
 
@@ -66,11 +66,11 @@ function mr(config) {
             console.log("[WORKER] doMap() invoked with msg:", msg);
             if (!msg.map_fn) {
               console.error("[WORKER] No map_fn in msg.");
-              return cb2(new Error('No map_fn'));
+              return cb2(new Error('No map_fn'), false);
             }
             if (!msg.gid) {
               console.error("[WORKER] No gid in msg.");
-              return cb2(new Error('No gid in msg!'));
+              return cb2(new Error('No gid in msg!'), false);
             }
             const outputs = [];
             let doneCount = 0;
