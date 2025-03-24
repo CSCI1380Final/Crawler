@@ -94,9 +94,13 @@ test('(10 pts) (scenario) all.mr:dlib', (done) => {
 */
 
   const mapper = (key, value) => {
+    const words = value.split(/\s+/).filter(word => word.length > 0);
+    return words.map(word => ({ [word]: 1 }));
   };
 
   const reducer = (key, values) => {
+    const sum = values.reduce((acc, val) => acc + val, 0);
+    return { [key]: sum };
   };
 
   const dataset = [
@@ -169,10 +173,34 @@ test('(10 pts) (scenario) all.mr:tfidf', (done) => {
 */
 
   const mapper = (key, value) => {
+    const words = value.split(/\s+/).filter(Boolean);
+    const wordCount = {};
+    words.forEach((word) => {
+      wordCount[word] = (wordCount[word] || 0) + 1;
+    });
+
+    const results = [];
+    for (const [word, count] of Object.entries(wordCount)) {
+      results.push({ [word]: { doc: key, count, total: words.length } });
+    }
+
+    return results;
   };
 
   // Reduce function: calculate TF-IDF for each word
   const reducer = (key, values) => {
+    const numDocs = 3; // total documents in dataset
+    const docAppearances = new Set(values.map(v => v.doc)).size;
+    const idf = Math.log10(numDocs / docAppearances);
+
+    const tfidfByDoc = {};
+    values.forEach(({ doc, count, total }) => {
+      const tf = count / total;
+      const tfidf = parseFloat((tf * idf).toFixed(2));
+      tfidfByDoc[doc] = tfidf;
+    });
+
+    return { [key]: tfidfByDoc };
   };
 
   const dataset = [
@@ -232,9 +260,61 @@ test('(10 pts) (scenario) all.mr:tfidf', (done) => {
   - Create a dataset.
   - Run the map reduce.
 */
-
 test('(10 pts) (scenario) all.mr:crawl', (done) => {
-    done(new Error('Implement this test.'));
+  const mapper = (key, value) => {
+    const urls = value.match(/https?:\/\/\S+/g) || [];
+    return urls.map(url => ({ [url]: 1 }));
+  };
+
+  const reducer = (key, values) => {
+    const count = values.reduce((sum, current) => sum + current, 0);
+    return { [key]: count };
+  };
+
+  const dataset = [
+    {'page1': 'Check out https://example.com and also visit https://openai.com'},
+    {'page2': 'For documentation go to https://docs.example.com or visit https://openai.com again'},
+    {'page3': 'Additional info at https://example.com and https://chat.openai.com'}
+  ];
+
+  const expected = [
+    {'https://example.com': 2},
+    {'https://openai.com': 2},
+    {'https://docs.example.com': 1},
+    {'https://chat.openai.com': 1},
+  ];
+
+  const doMapReduce = () => {
+    distribution.crawl.store.get(null, (e, v) => {
+      try {
+        expect(v.length).toBe(dataset.length);
+      } catch (err) {
+        done(err);
+      }
+
+      distribution.crawl.mr.exec({keys: v, map: mapper, reduce: reducer}, (e, v) => {
+        try {
+          expect(v).toEqual(expect.arrayContaining(expected));
+          done();
+        } catch (err) {
+          done(err);
+        }
+      });
+    });
+  };
+
+  let cntr = 0;
+
+  dataset.forEach((o) => {
+    const key = Object.keys(o)[0];
+    const value = o[key];
+    distribution.crawl.store.put(value, key, (e, v) => {
+      cntr++;
+      if (cntr === dataset.length) {
+        doMapReduce();
+      }
+    });
+  });
 });
 
 test('(10 pts) (scenario) all.mr:urlxtr', (done) => {
@@ -315,7 +395,12 @@ beforeAll((done) => {
               const tfidfConfig = {gid: 'tfidf'};
               distribution.local.groups.put(tfidfConfig, tfidfGroup, (e, v) => {
                 distribution.tfidf.groups.put(tfidfConfig, tfidfGroup, (e, v) => {
-                  done();
+                   const crawlfConfig = {gid: 'crawl'};
+                    distribution.local.groups.put(crawlfConfig, crawlGroup, (e, v) => {
+                    distribution.tfidf.groups.put(crawlfConfig, crawlGroup, (e, v) => {
+                     done();
+                    });
+                    });
                 });
               });
             });
@@ -340,5 +425,3 @@ afterAll((done) => {
     });
   });
 });
-
-
