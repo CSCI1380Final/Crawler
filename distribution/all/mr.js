@@ -22,6 +22,18 @@ function mr(config) {
     const mrId = 'mr-' + getID(Math.random());
     console.log("[ORCH] Generated mrId:", mrId);
 
+    // orchestratorNotify 
+    function orchestratorNotify(msg) {
+      console.log("[ORCH] orchestratorNotify called with", msg);
+      if (msg.phase === 'map_done') {
+        console.log('[ORCH] Received map_done from worker, data:', msg.data);
+        global.distribution.local[msg.mrId].onMapDone(msg.data);
+      } else if (msg.phase === 'reduce_done') {
+        console.log('[ORCH] Received reduce_done from worker, data:', msg.data);
+        global.distribution.local[msg.mrId].onReduceDone(msg.data);
+      }
+    }
+
     // Local as the process for handling orchestrator notify
     global.distribution.local.routes.put(
       { notify: orchestratorNotify },
@@ -33,56 +45,66 @@ function mr(config) {
         }
         console.log("[ORCH] Orchestrator route registered for", mrId);
 
+        // map logistics
         const mapResults = [];
         let totalMapTasks = 0; 
         let completedMap = 0;
 
+        // reduce logistics
+        let totalReduceTasks = 0;
+        let completedReduceCount = 0;
+        const reduceAggregation = [];
+
+        // For orchestratorNotify to access
         global.distribution.local[mrId] = {
           onMapDone: (data) => {
             console.log(`[ORCH] onMapDone called. current completedMap=${completedMap}, total=${totalMapTasks}`);
-            console.log("[ORCH] onMapDone data:", data);
             mapResults.push(...data);
             completedMap++;
             console.log(`[ORCH] completedMap = ${completedMap}`);
             if (completedMap === totalMapTasks) {
-              console.log("[ORCH] All map tasks done, now doReduce...");
+              console.log("[ORCH] All map tasks done, now doReduce (with shuffle)...");
               doReduce();
+            }
+          },
+          onReduceDone: (data) => {
+            // When worker finished, send back the reduced data
+            console.log(`[ORCH] onReduceDone called. data=`, data);
+            reduceAggregation.push(...data);
+            completedReduceCount++;
+            console.log(`[ORCH] completedReduceCount = ${completedReduceCount}, totalReduceTasks=${totalReduceTasks}`);
+            if (completedReduceCount === totalReduceTasks) {
+              console.log("[ORCH] All reduce tasks done. Final results:", reduceAggregation);
+              cb(null, reduceAggregation);
             }
           }
         };
 
+        // assign map worker
         const nodeMap = groupsModule.get(context.gid);
-        console.log("[ORCH] nodeMap is", nodeMap);
         const nodeSet = new Set();
         for (const key of configuration.keys) {
           const nodeId = id.consistentHash(key, Object.keys(nodeMap));
           nodeSet.add(nodeId);
         }
-        console.log("[ORCH] Unique nodeSet:", nodeSet);
 
         // worker service definition
         const mapWorker = {
           doMap: (msg, cb2) => {
             console.log("[WORKER] doMap() invoked with msg:", msg);
             if (!msg.map_fn) {
-              console.error("[WORKER] No map_fn in msg.");
               return cb2(new Error('No map_fn'), false);
             }
             if (!msg.gid) {
-              console.error("[WORKER] No gid in msg.");
               return cb2(new Error('No gid in msg!'), false);
             }
             const outputs = [];
             let doneCount = 0;
 
             for (const theKey of msg.keys) {
-              console.log("[WORKER] store.get key=", theKey);
               global.distribution.local.store.get({ gid: msg.gid, key: theKey }, (err, value) => {
-                if (err) {
-                  console.error("[WORKER] store.get error:", err);
-                  return cb2(err);
-                }
-                console.log(`[WORKER] map_fn(${theKey}, ${value})`);
+                if (err) return cb2(err);
+
                 const partial = msg.map_fn(theKey, value);
                 if (Array.isArray(partial)) {
                   outputs.push(...partial);
@@ -91,7 +113,6 @@ function mr(config) {
                 }
                 doneCount++;
                 if (doneCount === msg.keys.length) {
-                  console.log("[WORKER] doMap finished, outputs=", outputs);
                   cb2(null, outputs);
                 }
               });
@@ -99,24 +120,21 @@ function mr(config) {
           }
         };
 
-        // Register mapWorker service to worker 
+        // Register map worker to the assigned nodes
         let installed = 0;
         nodeSet.forEach(nodeId => {
           const node = nodeMap[nodeId];
-          console.log(`[ORCH] Installing worker -> ${mrId}-worker on node:`, node);
           global.distribution.local.comm.send(
             [mapWorker, mrId + '-worker'],
             { node, service: 'routes', method: 'put' },
-            (e, v) => {
-              if (e) {
-                console.error("[ERROR] Worker install failed on node", node, e);
-                return cb(e);
+            (err) => {
+              if (err) {
+                console.error("[ERROR] Worker install failed on node", node, err);
+                return cb(err);
               }
-              console.log(`[ORCH] Worker installed on node:`, node);
               installed++;
-              console.log(`[ORCH] installed=${installed}, nodeSet.size=${nodeSet.size}`);
               if (installed === nodeSet.size) {
-                console.log("[ORCH] All workers installed, start doMapPhase...");
+                // after install, start map process
                 doMapPhase();
               }
             }
@@ -125,22 +143,14 @@ function mr(config) {
 
         function doMapPhase() {
           totalMapTasks = configuration.keys.length;
-          console.log("[ORCH] doMapPhase -> totalMapTasks=", totalMapTasks);
-
           for (const key of configuration.keys) {
             const nodeId = id.consistentHash(key, Object.keys(nodeMap));
             const node = nodeMap[nodeId];
-            console.log(`[ORCH] Sending map request for key='${key}' to nodeId='${nodeId}'`, node);
             global.distribution.local.comm.send(
               [{ cmd: 'map', map_fn, keys: [key], gid: context.gid }],
               { node, service: mrId + '-worker', method: 'doMap' },
               (err, data) => {
-                if (err) {
-                  console.error("[ERROR] map task error for key=", key, err);
-                  return cb(err);
-                }
-                console.log(`[ORCH] map done for key='${key}' -> data=`, data);
-
+                if (err) return cb(err);
                 notifyOrchestrator({
                   phase: 'map_done',
                   mrId,
@@ -151,9 +161,9 @@ function mr(config) {
           }
         }
 
+    
         function doReduce() {
-          console.log("[ORCH] doReduce with mapResults:", mapResults);
-
+          // group the map result
           const grouped = {};
           for (const pair of mapResults) {
             for (const k in pair) {
@@ -162,42 +172,83 @@ function mr(config) {
             }
           }
 
-          const reduced = [];
+          // resend to the node based on key
+          const partitioned = {};
+          const nodeIds = Object.keys(nodeMap);
           for (const k in grouped) {
-            const r = reduce_fn(k, grouped[k]);
-            reduced.push(r);
+            const nId = id.consistentHash(k, nodeIds);
+            if (!partitioned[nId]) partitioned[nId] = {};
+            partitioned[nId][k] = grouped[k];
           }
-          console.log("[ORCH] doReduce -> final result:", reduced);
-          cb(null, reduced);
+          const reduceNodeIds = Object.keys(partitioned);
+          totalReduceTasks = reduceNodeIds.length;
+          console.log("[ORCH] reduce partition info:", partitioned);
+
+          // reduce worker logic
+          const reduceWorker = {
+            doReducePartition: (msg, cb2) => {
+              const partialResult = [];
+              for (const theKey in msg.partition) {
+                const vals = msg.partition[theKey];
+                const r = msg.reduce_fn(theKey, vals);
+                // { key: result }
+                partialResult.push(r);
+              }
+              cb2(null, partialResult);
+            }
+          };
+
+          let installedReduceWorkers = 0;
+          reduceNodeIds.forEach(nId => {
+            const node = nodeMap[nId];
+            global.distribution.local.comm.send(
+              [reduceWorker, mrId + '-reduce-worker'],
+              { node, service: 'routes', method: 'put' },
+              (err) => {
+                if (err) return cb(err);
+                installedReduceWorkers++;
+                if (installedReduceWorkers === reduceNodeIds.length) {
+                  // after install reduce worker, start reduce work
+                  startReduceTasks(partitioned);
+                }
+              }
+            );
+          });
         }
 
+        function startReduceTasks(partitioned) {
+          for (const nId in partitioned) {
+            const node = nodeMap[nId];
+            const p = partitioned[nId];
+            global.distribution.local.comm.send(
+              [{ partition: p, reduce_fn }],
+              { node, service: mrId + '-reduce-worker', method: 'doReducePartition' },
+              (err, partialReduceRes) => {
+                if (err) return cb(err);
+                // let orchestrator know that reduce is done
+                notifyOrchestrator({
+                  phase: 'reduce_done',
+                  mrId,
+                  data: partialReduceRes
+                });
+              }
+            );
+          }
+        }
+
+        // function send message to orchestrator 
         function notifyOrchestrator(msg) {
-          console.log("[ORCH] notifyOrchestrator ->", msg);
-          // RPC:
           global.distribution.local.comm.send(
             [msg],
             { node: global.nodeConfig, service: mrId, method: 'notify' },
-            (e, v) => {
-              if (e) {
-                console.error('[ORCH] notifyOrchestrator send error', e);
-              } else {
-                console.log('[ORCH] notifyOrchestrator done');
-              }
+            (err) => {
+              if (err) console.error('[ORCH] notifyOrchestrator send error', err);
             }
           );
         }
 
       }
     );
-
-    // orchestrator notify
-    function orchestratorNotify(msg) {
-      console.log("[ORCH] orchestratorNotify called with", msg);
-      if (msg.phase === 'map_done') {
-        console.log('[ORCH] Received map_done from worker, data:', msg.data);
-        global.distribution.local[msg.mrId].onMapDone(msg.data);
-      }
-    }
 
   }
 
