@@ -23,6 +23,7 @@
   "license": "ISC",
   "dependencies": {
     "@brown-ds/distribution": "^0.1.16",
+    "axios": "^1.8.4",
     "yargs": "^17.7.2"
   },
   "report": {
@@ -38,7 +39,7 @@
         265.39
       ],
       "aws/put": [
-        601.68 
+        601.68
       ],
       "dev/get": [
         312.89
@@ -55,7 +56,7 @@
         1.66
       ],
       "dev/get": [
-        3.20 
+        3.2
       ],
       "aws/get": [
         1.16
