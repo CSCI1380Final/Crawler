@@ -21,9 +21,7 @@ const n1 = {ip: '127.0.0.1', port: 7110};
 const n2 = {ip: '127.0.0.1', port: 7111};
 const n3 = {ip: '127.0.0.1', port: 7112};
 
-/*
- *  =============== 老师的原测试 ===============
-*/
+
 test('(20 pts) all.mr:ncdc', (done) => {
   const mapper = (key, value) => {
     const words = value.split(/(\s+)/).filter((e) => e !== ' ');
