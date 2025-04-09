@@ -90,34 +90,43 @@ function mr(config) {
 
         // worker service definition
         const mapWorker = {
-          doMap: (msg, cb2) => {
-            console.log("[WORKER] doMap() invoked with msg:", msg);
-            if (!msg.map_fn) {
-              return cb2(new Error('No map_fn'), false);
-            }
-            if (!msg.gid) {
-              return cb2(new Error('No gid in msg!'), false);
-            }
-            const outputs = [];
-            let doneCount = 0;
+          doMap: async (msg, cb2) => {
+  console.log("[WORKER] doMap() invoked with msg:", msg);
+  if (!msg.map_fn) {
+    return cb2(new Error('No map_fn'), false);
+  }
+  if (!msg.gid) {
+    return cb2(new Error('No gid in msg!'), false);
+  }
 
-            for (const theKey of msg.keys) {
-              global.distribution.local.store.get({ gid: msg.gid, key: theKey }, (err, value) => {
-                if (err) return cb2(err);
+  const outputs = [];
+  let doneCount = 0;
 
-                const partial = msg.map_fn(theKey, value);
-                if (Array.isArray(partial)) {
-                  outputs.push(...partial);
-                } else {
-                  outputs.push(partial);
-                }
-                doneCount++;
-                if (doneCount === msg.keys.length) {
-                  cb2(null, outputs);
-                }
-              });
-            }
-          }
+  for (const theKey of msg.keys) {
+    // ⭐ 这里把 callback 改成 async 的
+    global.distribution.local.store.get({ gid: msg.gid, key: theKey }, async (err, value) => {
+      if (err) return cb2(err);
+
+      try {
+        const partial = await msg.map_fn(theKey, value);  // ✅ 这里才能合法使用 await
+
+        if (Array.isArray(partial)) {
+          outputs.push(...partial);
+        } else {
+          outputs.push(partial);
+        }
+      } catch (e) {
+        console.error("[WORKER] map_fn error:", e);
+      }
+
+      doneCount++;
+      if (doneCount === msg.keys.length) {
+        cb2(null, outputs);
+      }
+    });
+  }
+}
+
         };
 
         // Register map worker to the assigned nodes

@@ -24,6 +24,7 @@
   "dependencies": {
     "@brown-ds/distribution": "^0.1.16",
     "axios": "^1.8.4",
+    "node-fetch": "^3.3.2",
     "yargs": "^17.7.2"
   },
   "report": {

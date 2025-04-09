@@ -47,6 +47,7 @@ function comm(config) {
         service: configuration.service,
         method: configuration.method
       };
+      console.log(remoteSpec)
       global.distribution.local.comm.send(message, remoteSpec, (err, res) => {
         if (err) {
           errorMap[nodeId] = err;

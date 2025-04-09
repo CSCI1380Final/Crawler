@@ -18,7 +18,7 @@ function generateRandomPairs(n) {
 const NUM_REQUESTS = 1000;
 const pairs = generateRandomPairs(NUM_REQUESTS);
 
-const awsNode = { ip: '127.0.0.1', port: 8001 };
+const awsNode = { ip: '3.144.48.151', port: 8001 };
 
 function sendPutRequests(callback) {
   console.log("Stage 2: Sending PUT requests to AWS node...");

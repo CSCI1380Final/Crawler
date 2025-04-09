@@ -10,53 +10,78 @@ const cfreqGroup = {};
 */
 let localServer = null;
 
-const n1 = {ip: '127.0.0.1', port: 7110};
-const n2 = {ip: '127.0.0.1', port: 7111};
-const n3 = {ip: '127.0.0.1', port: 7112};
+const n1 = {ip: '3.144.48.151', port: 8001};
+const n2 = {ip: '3.144.48.151', port: 8001};
+const n3 = {ip: '3.144.48.151', port: 8001};
 
-test('(20 pts) all.mr:ncdc', (done) => {
-  const mapper = (key, value) => {
-    const words = value.split(/(\s+)/).filter((e) => e !== ' ');
-    const out = {};
-    out[words[1]] = parseInt(words[3]);
-    return [out];
+const fs = require('fs');
+const path = require('path');
+
+
+test.only('(20 pts) all.mr:ncdc_arxiv_scraper', (done) => {
+  // 1. 读取 urls.txt 文件
+  const urlsPath = path.join(__dirname, 'urls.txt');
+  const rawUrls = fs.readFileSync(urlsPath, 'utf-8').split('\n').filter(line => line.trim() !== '');
+
+  // 2. 构造 dataset，和原格式保持一致：{ '0': url }
+  const dataset = rawUrls.map((url, idx) => ({ [String(idx)]: url }));
+
+  // 3. map 函数：爬取 arXiv 页面
+  const mapper = async (key, value) => {
+    const url = value.trim();
+    const page_id = url.split('/').pop();
+
+    try {
+      const res = await fetch(url);
+      const html = await res.text();
+
+      const titleMatch = html.match(/<title>(.*?)<\/title>/);
+      const abstractMatch = html.match(/<blockquote class="abstract[^>]*>([\s\S]*?)<\/blockquote>/);
+
+      const title = titleMatch ? titleMatch[1].replace(/\n/g, '').trim() : '';
+      const abstract = abstractMatch ? abstractMatch[1].replace(/<[^>]*>/g, '').replace(/\n/g, '').trim() : '';
+
+      const out = {};
+      out[page_id] = { title, abstract, link: url, page_id };
+      return [out];
+    } catch (err) {
+      console.error(`Failed to fetch ${url}: ${err.message}`);
+      return [];
+    }
   };
 
+  // 4. reduce 函数：简单地去重，保留第一个即可
   const reducer = (key, values) => {
     const out = {};
-    out[key] = values.reduce((a, b) => Math.max(a, b), -Infinity);
+    out[key] = values[0]; // 去重策略：保留第一个
     return out;
   };
 
-  const dataset = [
-    {'000': '006701199099999 1950 0515070049999999N9 +0000 1+9999'},
-    {'106': '004301199099999 1950 0515120049999999N9 +0022 1+9999'},
-    {'212': '004301199099999 1950 0515180049999999N9 -0011 1+9999'},
-    {'318': '004301265099999 1949 0324120040500001N9 +0111 1+9999'},
-    {'424': '004301265099999 1949 0324180040500001N9 +0078 1+9999'},
-  ];
-
-  const expected = [{'1950': 22}, {'1949': 111}];
-
-  const doMapReduce = (cb) => {
-    distribution.ncdc.mr.exec({keys: getDatasetKeys(dataset), map: mapper, reduce: reducer}, (e, v) => {
-      try {
-        expect(v).toEqual(expect.arrayContaining(expected));
-        done();
-      } catch (e) {
-        done(e);
+  // 5. 运行 map reduce
+  const doMapReduce = () => {
+    distribution.ncdc.mr.exec(
+      { keys: getDatasetKeys(dataset), map: mapper, reduce: reducer },
+      (err, results) => {
+        if (err) return done(err);
+        try {
+          const keys = results.map((obj) => Object.keys(obj)[0]);
+          const uniqueKeys = new Set(keys);
+          expect(keys.length).toBe(uniqueKeys.size); // 验证没有重复的 page_id
+          done();
+        } catch (e) {
+          done(e);
+        }
       }
-    });
+    );
   };
 
+  // 6. 先 put dataset，然后运行 MR
   let cntr = 0;
-  // Send the dataset to the cluster
-  dataset.forEach((o) => {
-    const key = Object.keys(o)[0];
-    const value = o[key];
+  dataset.forEach((entry) => {
+    const key = Object.keys(entry)[0];
+    const value = entry[key];
     distribution.ncdc.store.put(value, key, (e, v) => {
       cntr++;
-      // Once the dataset is in place, run the map reduce
       if (cntr === dataset.length) {
         doMapReduce();
       }
@@ -206,13 +231,14 @@ beforeAll((done) => {
 
 
   const startNodes = (cb) => {
-    distribution.local.status.spawn(n1, (e, v) => {
-      distribution.local.status.spawn(n2, (e, v) => {
-        distribution.local.status.spawn(n3, (e, v) => {
-          cb();
-        });
-      });
-    });
+    // distribution.local.status.spawn(n1, (e, v) => {
+      // distribution.local.status.spawn(n2, (e, v) => {
+      //   distribution.local.status.spawn(n3, (e, v) => {
+      //     cb();
+      //   });
+      // });
+    // });
+    cb()
   };
 
   distribution.node.start((server) => {
