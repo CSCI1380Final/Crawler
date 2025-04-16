@@ -54,6 +54,7 @@ if (global.distribution === undefined) {
 distribution.util = require('./distribution/util/util.js');
 distribution.local = require('./distribution/local/local.js');
 distribution.node = require('./distribution/local/node.js');
+distribution.util.require = require
 
 for (const key in distribution.local) {
   distribution.local.routes.put(distribution.local[key], key);

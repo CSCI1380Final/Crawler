@@ -107,7 +107,7 @@ function mr(config) {
         doMap: (msg, cb2) => {
           (async () => {
             console.log("[WORKER] doMap() invoked:", msg);
-            const { map_fn, gid, keys, nodeId, mrId } = msg;
+            const { map_fn, gid, keys, nodeId, mrId, require } = msg;
             if (!map_fn) throw new Error('No map_fn provided');
             if (!gid) throw new Error('No gid in msg');
 
@@ -125,7 +125,7 @@ function mr(config) {
                 });
               });
               // 2) 调用 map_fn (async)
-              const partial = await map_fn(theKey, value);
+              const partial = await map_fn(theKey, value, require);
 
               // 3) push 到全局
               if (Array.isArray(partial)) {
@@ -305,7 +305,8 @@ function mr(config) {
               keys: nodeKeysMap[nId],
               gid: context.gid,
               nodeId: nId,
-              mrId
+              mrId,
+              require: configuration.require
             }],
             { node, service: mrId + '-worker', method: 'doMap' },
             (err, data) => {
@@ -405,10 +406,6 @@ function mr(config) {
   return { exec };
 }
 
-/** 
- * 在 orchestrator 本地使用的哈希函数
- * （它不需要序列化到远程，所以可以放在全局）
- */
 function globalModuleHash(key, nodeIds) {
   nodeIds.sort();
   return nodeIds[idToNum(key) % nodeIds.length];

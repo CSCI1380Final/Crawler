@@ -168,30 +168,46 @@ function storeTestData() {
   });
 }
 
-
 function runMapReduce(keys) {
-  const mapFn = async (key, value) => {
-    const url = value.trim();
-    const paper_id = url.split('/').pop();
 
-    try {
-      const res = await fetch(url);
-      const html = await res.text();
+const mapFn = async (key, value, require) => {
+  const pdf = require('pdf-parse');          // ✅ 动态加载 pdf-parse
 
-      let titleMatch = html.match(/<h1 class="title mathjax">.*?<\/span>(.*?)<\/h1>/);
-      const abstractMatch = html.match(/<blockquote class="abstract[^>]*>([\s\S]*?)<\/blockquote>/);
+  const url = value.trim(); // abs 页链接
+  const paper_id = url.split('/').pop();
+  let title = '', abstract = '', text = '';
 
-      const title = titleMatch ? titleMatch[1].replace(/\n/g, '').trim() : '';
-      const abstract = abstractMatch ? abstractMatch[1].replace(/<[^>]*>/g, '').replace(/\n/g, '').trim() : '';
+  try {
+    // 1. 先从 HTML 提取 title 和 abstract
+    const htmlRes = await fetch(url);
+    const html = await htmlRes.text();
 
-      const out = {};
-      out[paper_id] = { title, abstract, link: url, paper_id };
-      return [out];
-    } catch (err) {
-      console.error(`[MAP] Fetch failed for ${url}: ${err.message}`);
-      return [];
-    }
-  };
+    const titleMatch = html.match(/<h1 class="title mathjax">.*?<\/span>(.*?)<\/h1>/);
+    const abstractMatch = html.match(/<blockquote class="abstract[^>]*>([\s\S]*?)<\/blockquote>/);
+
+    title = titleMatch ? titleMatch[1].replace(/\n/g, '').trim() : '';
+    abstract = abstractMatch ? abstractMatch[1].replace(/<[^>]*>/g, '').replace(/\n/g, '').trim() : '';
+
+    // 2. 自动构造 PDF 链接，提取正文
+    const pdfUrl = url.replace('/abs/', '/pdf/') + '.pdf';
+    const pdfRes = await fetch(pdfUrl);
+    const buffer = await pdfRes.buffer();
+
+    const data = await pdf(buffer);
+    const words = data.text.split(/\s+/).slice(0, 1000);
+    text = words.join(' ');
+
+    // 3. 返回结构
+    const out = {};
+    out[paper_id] = { title, abstract, link: url, paper_id, text };
+    return [out];
+
+  } catch (err) {
+    console.error(`[MAP] Failed for ${url}: ${err.message}`);
+    return [];
+  }
+};
+
 
   const reduceFn = (key, values) => {
     const out = {};
@@ -201,7 +217,7 @@ function runMapReduce(keys) {
 
   const mrStartTime = performance.now(); // <-- 添加这一行
 
-  distribution.research.mr.exec({ keys, map: mapFn, reduce: reduceFn }, (err, results) => {
+  distribution.research.mr.exec({ keys, map: mapFn, reduce: reduceFn, require: distribution.util.require }, (err, results) => {
     const mrEndTime = performance.now(); // <-- 添加这一行
 
     if (err) {
@@ -218,7 +234,8 @@ function runMapReduce(keys) {
       paper_id: paper_id,  
       title,
       abstract,
-      link
+      link,
+      text  
     };
   });
     
