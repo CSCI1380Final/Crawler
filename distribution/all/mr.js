@@ -108,6 +108,7 @@ function mr(config) {
           (async () => {
             console.log("[WORKER] doMap() invoked:", msg);
             const { map_fn, gid, keys, nodeId, mrId, require } = msg;
+            console.log("[MR Require]", require)
             if (!map_fn) throw new Error('No map_fn provided');
             if (!gid) throw new Error('No gid in msg');
 
@@ -124,10 +125,9 @@ function mr(config) {
                   resolve(val);
                 });
               });
-              // 2) 调用 map_fn (async)
+              // 2) call map_fn (async)
               const partial = await map_fn(theKey, value, require);
 
-              // 3) push 到全局
               if (Array.isArray(partial)) {
                 global.mapResults.push(...partial);
               } else {

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 const distribution = require('../../config.js');
+console.log('[AWS]', Object.keys(distribution))
 const fs = require('fs');
 const path = require('path');
 const id = distribution.util.id;
@@ -13,7 +14,7 @@ const awsNode = {
 };
 
 const awsNode2 = {
-  ip : '52.14.114.169',
+  ip : '52.14.72.223',
   port:1234
 }
 //
@@ -97,7 +98,7 @@ const localNode = {
 const localGid = { gid: 'research' };
 const localGroup = {};
 localGroup[id.getSID(awsNode)] = awsNode;
-// // localGroup[id.getSID(awsNode2)] = awsNode2;
+// localGroup[id.getSID(awsNode2)] = awsNode2;
 // localGroup[id.getSID(awsNode3)] = awsNode3;
 // localGroup[id.getSID(awsNode4)] = awsNode4;
 // localGroup[id.getSID(awsNode5)] = awsNode5;
@@ -170,15 +171,13 @@ function storeTestData() {
 
 function runMapReduce(keys) {
 
-const mapFn = async (key, value, require) => {
-  const pdf = require('pdf-parse');          // ✅ 动态加载 pdf-parse
+const mapFn = async (key, value, require) => {        
 
-  const url = value.trim(); // abs 页链接
+  const url = value.trim(); 
   const paper_id = url.split('/').pop();
   let title = '', abstract = '', text = '';
 
   try {
-    // 1. 先从 HTML 提取 title 和 abstract
     const htmlRes = await fetch(url);
     const html = await htmlRes.text();
 
@@ -188,16 +187,16 @@ const mapFn = async (key, value, require) => {
     title = titleMatch ? titleMatch[1].replace(/\n/g, '').trim() : '';
     abstract = abstractMatch ? abstractMatch[1].replace(/<[^>]*>/g, '').replace(/\n/g, '').trim() : '';
 
-    // 2. 自动构造 PDF 链接，提取正文
     const pdfUrl = url.replace('/abs/', '/pdf/') + '.pdf';
     const pdfRes = await fetch(pdfUrl);
-    const buffer = await pdfRes.buffer();
+  const arrayBuffer = await pdfRes.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
 
-    const data = await pdf(buffer);
+
+    const data = await distribution.pdf(buffer);
     const words = data.text.split(/\s+/).slice(0, 1000);
     text = words.join(' ');
 
-    // 3. 返回结构
     const out = {};
     out[paper_id] = { title, abstract, link: url, paper_id, text };
     return [out];
@@ -211,14 +210,14 @@ const mapFn = async (key, value, require) => {
 
   const reduceFn = (key, values) => {
     const out = {};
-    out[key] = values[0]; // 保留第一个
+    out[key] = values[0]; 
     return out;
   };
 
-  const mrStartTime = performance.now(); // <-- 添加这一行
+  const mrStartTime = performance.now(); 
 
   distribution.research.mr.exec({ keys, map: mapFn, reduce: reduceFn, require: distribution.util.require }, (err, results) => {
-    const mrEndTime = performance.now(); // <-- 添加这一行
+    const mrEndTime = performance.now(); 
 
     if (err) {
       console.error('[MR] MapReduce error:', err);
@@ -244,7 +243,7 @@ const mapFn = async (key, value, require) => {
     try {
       fs.writeFileSync(filePath, JSON.stringify(results, null, 2), 'utf-8');
       console.log('✅ 结果已成功写入 result.json');
-      const duration = (mrEndTime - mrStartTime).toFixed(2); // <-- 添加这一行
+      const duration = (mrEndTime - mrStartTime).toFixed(2); 
       console.log(transformed)
 
     //   fetch('http://39.101.70.173:10086/batchInsert', {
@@ -262,7 +261,7 @@ const mapFn = async (key, value, require) => {
     //     console.error("❌ 请求失败：", err);
     //   });
 
-      console.log(`🕒 MapReduce 执行时间: ${duration} 毫秒`); // <-- 添加这一行
+      console.log(`🕒 MapReduce 执行时间: ${duration} 毫秒`); 
 
     } catch (err) {
       console.error('❌ 写入 JSON 文件出错:', err);
