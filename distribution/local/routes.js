@@ -25,28 +25,28 @@ function get(configuration, callback) {
     gid = "local";
   }
   
-  console.log('[routes.get] Received request for service:', service, 'in group:', gid);
-  console.log('[routes.get] Current local routes keys:', Object.keys(routes));
+  // console.log('[routes.get] Received request for service:', service, 'in group:', gid);
+  // console.log('[routes.get] Current local routes keys:', Object.keys(routes));
 
   let result;
   if (gid === "local" && (service in routes)) {
-    console.log('[routes.get] Found service in local routes:', service);
+    // console.log('[routes.get] Found service in local routes:', service);
     result = routes[service];
   } 
   else if (global.distribution &&
            global.distribution[gid] &&
            (service in global.distribution[gid])) {
-    console.log('[routes.get] Found service in global.distribution:', gid, service);
-    console.log('[routes.get] Available services in group', gid, 'are:', Object.keys(global.distribution[gid]));
+    // console.log('[routes.get] Found service in global.distribution:', gid, service);
+    // console.log('[routes.get] Available services in group', gid, 'are:', Object.keys(global.distribution[gid]));
     result = global.distribution[gid][service];
   }
   else if (global.toLocal && global.toLocal[service]) {
-    console.log('[routes.get] Found service in global.toLocal:', service);
+    // console.log('[routes.get] Found service in global.toLocal:', service);
     result = { call: global.toLocal[service] };
   }
   
   if (!result) {
-    console.error(`[routes.get] Could not find service "${service}" in group "${gid}"`);
+    // console.error(`[routes.get] Could not find service "${service}" in group "${gid}"`);
     if (global.distribution && global.distribution[gid]) {
       console.error('[routes.get] group object keys are:', Object.keys(global.distribution[gid]));
     } else {
@@ -55,7 +55,7 @@ function get(configuration, callback) {
     return callback(new Error(`service "${service}" not found in group "${gid}"`), null);
   }
 
-  console.log('[routes.get] Returning service object for service:', service, 'group:', gid);
+  // console.log('[routes.get] Returning service object for service:', service, 'group:', gid);
   callback(null, result);
   return result;
 }

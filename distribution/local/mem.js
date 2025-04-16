@@ -22,7 +22,7 @@ function put(state, configuration, callback) {
     if (e) {
       console.error(e);
     } else {
-      console.log(v);
+      // console.log(v);
     }
   };
   try {
@@ -39,7 +39,7 @@ function get(configuration, callback) {
     if (e) {
       console.error(e);
     } else {
-      console.log(v);
+      // console.log(v);
     }
   };
   try {
@@ -67,7 +67,7 @@ function del(configuration, callback) {
     if (e) {
       console.error(e);
     } else {
-      console.log(v);
+      // console.log(v);
     }
   };
   try {

@@ -62,7 +62,7 @@ function get(configuration, callback) {
     if (e) {
       console.error(e);
     } else {
-      console.log(v);
+      // console.log(v);
     }
   };
 

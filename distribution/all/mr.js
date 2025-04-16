@@ -1,12 +1,21 @@
 const { getID } = require('../util/id.js');
 const groupsModule = require('../local/groups');
-const { id } = global.distribution.util;
 
+/**
+ * 创建一个 MapReduce 对象
+ * @param {Object} config
+ * @returns {{ exec: Function }}
+ */
 function mr(config) {
   const context = {
     gid: config.gid || 'all',
   };
 
+  /**
+   * 核心入口
+   * @param {Object} configuration
+   * @param {Function} cb
+   */
   function exec(configuration, cb) {
     console.log("[DEBUG] mr.exec() called with:", configuration);
 
@@ -18,250 +27,399 @@ function mr(config) {
     const map_fn = configuration.map || null;
     const reduce_fn = configuration.reduce || null;
 
-    // mr id used for tasks
+    // 给这次MR生成唯一ID
     const mrId = 'mr-' + getID(Math.random());
     console.log("[ORCH] Generated mrId:", mrId);
 
-    // orchestratorNotify 
+    /**
+     * orchestratorNotify: orchestrator在本地的路由回调
+     */
     function orchestratorNotify(msg) {
       console.log("[ORCH] orchestratorNotify called with", msg);
       if (msg.phase === 'map_done') {
-        console.log('[ORCH] Received map_done from worker, data:', msg.data);
-        global.distribution.local[msg.mrId].onMapDone(msg.data);
+        global.distribution.local[msg.mrId].onMapDone(msg.nodeId);
+      } else if (msg.phase === 'shuffle_done') {
+        global.distribution.local[msg.mrId].onShuffleDone(msg.nodeId);
       } else if (msg.phase === 'reduce_done') {
-        console.log('[ORCH] Received reduce_done from worker, data:', msg.data);
         global.distribution.local[msg.mrId].onReduceDone(msg.data);
       }
     }
 
-    // Local as the process for handling orchestrator notify
-    global.distribution.local.routes.put(
-      { notify: orchestratorNotify },
-      mrId,
-      (e, v) => {
-        if (e) {
-          console.error("[ERROR] Failed to register orchestrator route:", e);
-          return cb(new Error(`[ORCH] Failed to register orchestrator: ${e.message}`), false);
-        }
-        console.log("[ORCH] Orchestrator route registered for", mrId);
+    // 注册一个 orchestrator 路由
+    global.distribution.local.routes.put({ notify: orchestratorNotify }, mrId, (e, v) => {
+      if (e) {
+        console.error("[ERROR] Failed to register orchestrator route:", e);
+        return cb(new Error(`[ORCH] Failed to register orchestrator: ${e.message}`), false);
+      }
+      console.log("[ORCH] Orchestrator route registered for", mrId);
 
-        // map logistics
-        const mapResults = [];
-        let totalMapTasks = 0; 
-        let completedMap = 0;
+      // 以下是分发阶段的一些变量
+      let completedMapNodes = new Set();
+      let completedShuffleNodes = new Set();
+      let completedReduceCount = 0;
+      let totalReduceTasks = 0;
+      const reduceAggregation = [];
 
-        // reduce logistics
-        let totalReduceTasks = 0;
-        let completedReduceCount = 0;
-        const reduceAggregation = [];
-
-        // For orchestratorNotify to access
-        global.distribution.local[mrId] = {
-          onMapDone: (data) => {
-            console.log(`[ORCH] onMapDone called. current completedMap=${completedMap}, total=${totalMapTasks}`);
-            mapResults.push(...data);
-            completedMap++;
-            console.log(`[ORCH] completedMap = ${completedMap}`);
-            if (completedMap === totalMapTasks) {
-              console.log("[ORCH] All map tasks done, now doReduce (with shuffle)...");
-              doReduce();
-            }
-          },
-          onReduceDone: (data) => {
-            // When worker finished, send back the reduced data
-            console.log(`[ORCH] onReduceDone called. data=`, data);
-            reduceAggregation.push(...data);
-            completedReduceCount++;
-            console.log(`[ORCH] completedReduceCount = ${completedReduceCount}, totalReduceTasks=${totalReduceTasks}`);
-            if (completedReduceCount === totalReduceTasks) {
-              console.log("[ORCH] All reduce tasks done. Final results:", reduceAggregation);
-              cb(null, reduceAggregation);
-            }
+      // 在 orchestrator 上，用来接收 worker 的通知
+      global.distribution.local[mrId] = {
+        onMapDone: (nodeId) => {
+          completedMapNodes.add(nodeId);
+          if (completedMapNodes.size === nodeSet.size) {
+            console.log("[ORCH] All map tasks done, now starting shuffle phase...");
+            startShufflePhase();
           }
-        };
-
-        // assign map worker
-        const nodeMap = groupsModule.get(context.gid);
-        const nodeSet = new Set();
-        for (const key of configuration.keys) {
-          const nodeId = id.consistentHash(key, Object.keys(nodeMap));
-          nodeSet.add(nodeId);
+        },
+        onShuffleDone: (nodeId) => {
+          completedShuffleNodes.add(nodeId);
+          if (completedShuffleNodes.size === nodeSet.size) {
+            console.log("[ORCH] All shuffle tasks done, now starting reduce phase...");
+            startReducePhase();
+          }
+        },
+        onReduceDone: (data) => {
+          reduceAggregation.push(...data);
+          completedReduceCount++;
+          if (completedReduceCount === totalReduceTasks) {
+            console.log("[ORCH] All reduce tasks done. Final results:", reduceAggregation);
+            cb(null, reduceAggregation);
+          }
         }
+      };
 
-        // worker service definition
-        const mapWorker = {
-          doMap: async (msg, cb2) => {
-  console.log("[WORKER] doMap() invoked with msg:", msg);
-  if (!msg.map_fn) {
-    return cb2(new Error('No map_fn'), false);
-  }
-  if (!msg.gid) {
-    return cb2(new Error('No gid in msg!'), false);
-  }
-
-  const outputs = [];
-  let doneCount = 0;
-
-  for (const theKey of msg.keys) {
-    // ⭐ 这里把 callback 改成 async 的
-    global.distribution.local.store.get({ gid: msg.gid, key: theKey }, async (err, value) => {
-      if (err) return cb2(err);
-
-      try {
-        const partial = await msg.map_fn(theKey, value);  // ✅ 这里才能合法使用 await
-
-        if (Array.isArray(partial)) {
-          outputs.push(...partial);
-        } else {
-          outputs.push(partial);
-        }
-      } catch (e) {
-        console.error("[WORKER] map_fn error:", e);
+      // 获取group内节点信息
+      const nodeMap = groupsModule.get(context.gid);
+      const nodeIds = Object.keys(nodeMap);
+      // 计算要把keys分配给哪些节点
+      const nodeSet = new Set();
+      for (const key of configuration.keys) {
+        const nodeId = globalModuleHash(key, nodeIds);
+        nodeSet.add(nodeId);
       }
 
-      doneCount++;
-      if (doneCount === msg.keys.length) {
-        cb2(null, outputs);
-      }
-    });
-  }
-}
+      /**
+       * 定义要在 worker 上执行的方法
+       * 关键：我们要把“需要序列化”的函数都放进这个对象里
+       */
+      const mapWorker = {
+        /**
+         * doMap: 支持 async map_fn
+         */
+        doMap: (msg, cb2) => {
+          (async () => {
+            console.log("[WORKER] doMap() invoked:", msg);
+            const { map_fn, gid, keys, nodeId, mrId } = msg;
+            if (!map_fn) throw new Error('No map_fn provided');
+            if (!gid) throw new Error('No gid in msg');
 
-        };
-
-        // Register map worker to the assigned nodes
-        let installed = 0;
-        nodeSet.forEach(nodeId => {
-          const node = nodeMap[nodeId];
-          global.distribution.local.comm.send(
-            [mapWorker, mrId + '-worker'],
-            { node, service: 'routes', method: 'put' },
-            (err) => {
-              if (err) {
-                console.error("[ERROR] Worker install failed on node", node, err);
-                return cb(err);
-              }
-              installed++;
-              if (installed === nodeSet.size) {
-                // after install, start map process
-                doMapPhase();
-              }
+            if (!global.mapResults) {
+              global.mapResults = [];
             }
-          );
-        });
 
-        function doMapPhase() {
-          totalMapTasks = configuration.keys.length;
-          for (const key of configuration.keys) {
-            const nodeId = id.consistentHash(key, Object.keys(nodeMap));
-            const node = nodeMap[nodeId];
-            global.distribution.local.comm.send(
-              [{ cmd: 'map', map_fn, keys: [key], gid: context.gid }],
-              { node, service: mrId + '-worker', method: 'doMap' },
-              (err, data) => {
-                if (err) return cb(err);
-                notifyOrchestrator({
-                  phase: 'map_done',
-                  mrId,
-                  data,
+            // 依次处理 keys
+            for (const theKey of keys) {
+              // 1) 从 store 获取
+              const value = await new Promise((resolve, reject) => {
+                global.distribution.local.store.get({ gid, key: theKey }, (err, val) => {
+                  if (err) return reject(err);
+                  resolve(val);
                 });
-              }
-            );
-          }
-        }
+              });
+              // 2) 调用 map_fn (async)
+              const partial = await map_fn(theKey, value);
 
-    
-        function doReduce() {
-          // group the map result
+              // 3) push 到全局
+              if (Array.isArray(partial)) {
+                global.mapResults.push(...partial);
+              } else {
+                global.mapResults.push(partial);
+              }
+            }
+
+            // 通知 orchestrator，map_done
+            return { done: true, nodeId };
+          })()
+            .then(result => cb2(null, result))
+            .catch(err => cb2(err));
+        },
+
+        /**
+         * doShuffle: 需要把 nodeAddrs、nodeIds、mrId 从 msg 解构出来
+         * 并内嵌 localModuleHash 函数来做哈希分配
+         */
+        doShuffle: (msg, cb2) => {
+          console.log("[WORKER] doShuffle() invoked");
+          const { nodeAddrs, nodeIds, nodeId, mrId } = msg;
+
+          // 内嵌的哈希函数
+          function localModuleHash(key, arr) {
+            arr.sort();
+            return arr[localIdToNum(key) % arr.length];
+          }
+          function localIdToNum(id) {
+            let hash = 0;
+            for (let i = 0; i < id.length; i++) {
+              hash = ((hash << 5) - hash) + id.charCodeAt(i);
+              hash = hash & hash;
+            }
+            return Math.abs(hash);
+          }
+
+          if (!global.mapResults || global.mapResults.length === 0) {
+            return cb2(null, { done: true, nodeId });
+          }
+
+          // 1) 分组
           const grouped = {};
-          for (const pair of mapResults) {
+          for (const pair of global.mapResults) {
             for (const k in pair) {
               if (!grouped[k]) grouped[k] = [];
               grouped[k].push(pair[k]);
             }
           }
 
-          // resend to the node based on key
+          // 2) 分区
           const partitioned = {};
-          const nodeIds = Object.keys(nodeMap);
           for (const k in grouped) {
-            const nId = id.consistentHash(k, nodeIds);
+            const nId = localModuleHash(k, nodeIds);
             if (!partitioned[nId]) partitioned[nId] = {};
             partitioned[nId][k] = grouped[k];
           }
-          const reduceNodeIds = Object.keys(partitioned);
-          totalReduceTasks = reduceNodeIds.length;
-          console.log("[ORCH] reduce partition info:", partitioned);
 
-          // reduce worker logic
-          const reduceWorker = {
-            doReducePartition: (msg, cb2) => {
-              const partialResult = [];
-              for (const theKey in msg.partition) {
-                const vals = msg.partition[theKey];
-                const r = msg.reduce_fn(theKey, vals);
-                // { key: result }
-                partialResult.push(r);
-              }
-              cb2(null, partialResult);
-            }
-          };
+          console.log("[WORKER] Shuffle completed. Partitions:", Object.keys(partitioned).length);
 
-          let installedReduceWorkers = 0;
-          reduceNodeIds.forEach(nId => {
-            const node = nodeMap[nId];
+          // 自己要处理的分区
+          global.shufflePartition = partitioned[nodeId] || {};
+
+          // 给其他节点发送分区数据
+          const sendTargets = Object.keys(partitioned).filter(n => n !== nodeId);
+          if (sendTargets.length === 0) {
+            return cb2(null, { done: true, nodeId });
+          }
+
+          let sendCount = 0;
+          for (const targetNodeId of sendTargets) {
+            const targetNode = nodeAddrs[targetNodeId];  // IP/port
             global.distribution.local.comm.send(
-              [reduceWorker, mrId + '-reduce-worker'],
-              { node, service: 'routes', method: 'put' },
+              [{
+                cmd: 'receiveShuffleData',
+                partition: partitioned[targetNodeId],
+                sourceNodeId: nodeId
+              }],
+              { node: targetNode, service: mrId + '-worker', method: 'receiveShuffleData' },
               (err) => {
-                if (err) return cb(err);
-                installedReduceWorkers++;
-                if (installedReduceWorkers === reduceNodeIds.length) {
-                  // after install reduce worker, start reduce work
-                  startReduceTasks(partitioned);
+                if (err) {
+                  console.error("[WORKER] Failed to send shuffle data to", targetNodeId, err);
+                  return cb2(err);
+                }
+                sendCount++;
+                if (sendCount === sendTargets.length) {
+                  cb2(null, { done: true, nodeId });
                 }
               }
             );
-          });
-        }
-
-        function startReduceTasks(partitioned) {
-          for (const nId in partitioned) {
-            const node = nodeMap[nId];
-            const p = partitioned[nId];
-            global.distribution.local.comm.send(
-              [{ partition: p, reduce_fn }],
-              { node, service: mrId + '-reduce-worker', method: 'doReducePartition' },
-              (err, partialReduceRes) => {
-                if (err) return cb(err);
-                // let orchestrator know that reduce is done
-                notifyOrchestrator({
-                  phase: 'reduce_done',
-                  mrId,
-                  data: partialReduceRes
-                });
-              }
-            );
           }
+        },
+
+        /**
+         * receiveShuffleData: 合并别的节点发来的分区
+         */
+        receiveShuffleData: (msg, cb2) => {
+          if (!global.shufflePartition) {
+            global.shufflePartition = {};
+          }
+          const { partition, sourceNodeId } = msg;
+          for (const k in partition) {
+            if (!global.shufflePartition[k]) {
+              global.shufflePartition[k] = [];
+            }
+            global.shufflePartition[k].push(...partition[k]);
+          }
+          cb2(null, { received: true, sourceNodeId });
+        },
+
+        /**
+         * doReduce
+         */
+        doReduce: (msg, cb2) => {
+          console.log("[WORKER] doReduce() invoked");
+          const { reduce_fn, nodeId, mrId } = msg;
+
+          if (!global.shufflePartition) {
+            return cb2(null, []);
+          }
+
+          const partialResult = [];
+          for (const theKey in global.shufflePartition) {
+            const vals = global.shufflePartition[theKey];
+            const r = reduce_fn(theKey, vals);
+            partialResult.push(r);
+          }
+          // 清理
+          delete global.mapResults;
+          delete global.shufflePartition;
+
+          cb2(null, partialResult);
+        }
+      };
+
+      // 在所有要参与的节点上安装 mapWorker
+      const nodeSetArr = Array.from(nodeSet);
+      let installedCount = 0;
+      nodeSetArr.forEach(nId => {
+        const node = nodeMap[nId];
+        global.distribution.local.comm.send(
+          [mapWorker, mrId + '-worker'], 
+          { node, service: 'routes', method: 'put' },
+          (err) => {
+            if (err) {
+              console.error("[ERROR] Worker install failed on node", node, err);
+              return cb(err);
+            }
+            installedCount++;
+            if (installedCount === nodeSetArr.length) {
+              // 全部 worker service 安装完毕 -> map阶段
+              doMapPhase();
+            }
+          }
+        );
+      });
+
+      /**
+       * doMapPhase
+       */
+      function doMapPhase() {
+        const nodeKeysMap = {};
+        for (const key of configuration.keys) {
+          const nId = globalModuleHash(key, nodeIds);
+          if (!nodeKeysMap[nId]) nodeKeysMap[nId] = [];
+          nodeKeysMap[nId].push(key);
         }
 
-        // function send message to orchestrator 
-        function notifyOrchestrator(msg) {
+        // 给每个节点发送map任务
+        for (const nId in nodeKeysMap) {
+          const node = nodeMap[nId];
           global.distribution.local.comm.send(
-            [msg],
-            { node: global.nodeConfig, service: mrId, method: 'notify' },
-            (err) => {
-              if (err) console.error('[ORCH] notifyOrchestrator send error', err);
+            [{
+              cmd: 'map',
+              map_fn,
+              keys: nodeKeysMap[nId],
+              gid: context.gid,
+              nodeId: nId,
+              mrId
+            }],
+            { node, service: mrId + '-worker', method: 'doMap' },
+            (err, data) => {
+              if (err) return cb(err);
+              notifyOrchestrator({
+                phase: 'map_done',
+                mrId,
+                nodeId: data.nodeId
+              });
             }
           );
         }
-
       }
-    );
 
+      /**
+       * startShufflePhase
+       */
+      function startShufflePhase() {
+        console.log("[ORCH] Starting shuffle phase...");
+        const nodeIdsArr = Array.from(nodeSet);
+        // 准备 nodeAddrs
+        const nodeAddrs = {};
+        nodeIdsArr.forEach(nId => {
+          nodeAddrs[nId] = nodeMap[nId]; // { ip, port, ... }
+        });
+        
+        nodeIdsArr.forEach(nId => {
+          const node = nodeMap[nId];
+          global.distribution.local.comm.send(
+            [{
+              cmd: 'shuffle',
+              nodeId: nId,
+              nodeIds: nodeIdsArr,
+              nodeAddrs,
+              mrId
+            }],
+            { node, service: mrId + '-worker', method: 'doShuffle' },
+            (err, data) => {
+              if (err) {
+                console.error("[ERROR] Shuffle failed on node", nId, err);
+                return cb(err);
+              }
+              notifyOrchestrator({
+                phase: 'shuffle_done',
+                mrId,
+                nodeId: data.nodeId
+              });
+            }
+          );
+        });
+      }
+
+      /**
+       * startReducePhase
+       */
+      function startReducePhase() {
+        totalReduceTasks = nodeSet.size;
+        nodeSet.forEach(nId => {
+          const node = nodeMap[nId];
+          global.distribution.local.comm.send(
+            [{
+              reduce_fn,
+              mrId,
+              nodeId: nId
+            }],
+            { node, service: mrId + '-worker', method: 'doReduce' },
+            (err, partialReduceRes) => {
+              if (err) {
+                console.error("[ERROR] Reduce failed on node", nId, err);
+                return cb(err);
+              }
+              notifyOrchestrator({
+                phase: 'reduce_done',
+                mrId,
+                data: partialReduceRes
+              });
+            }
+          );
+        });
+      }
+
+      /**
+       * orchestrator -> orchestrator route
+       */
+      function notifyOrchestrator(msg) {
+        global.distribution.local.comm.send(
+          [msg],
+          { node: global.nodeConfig, service: mrId, method: 'notify' },
+          (err) => {
+            if (err) console.error('[ORCH] notifyOrchestrator send error', err);
+          }
+        );
+      }
+    });
   }
 
   return { exec };
+}
+
+/** 
+ * 在 orchestrator 本地使用的哈希函数
+ * （它不需要序列化到远程，所以可以放在全局）
+ */
+function globalModuleHash(key, nodeIds) {
+  nodeIds.sort();
+  return nodeIds[idToNum(key) % nodeIds.length];
+}
+function idToNum(id) {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = ((hash << 5) - hash) + id.charCodeAt(i);
+    hash = hash & hash;
+  }
+  return Math.abs(hash);
 }
 
 module.exports = mr;

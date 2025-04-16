@@ -6,7 +6,7 @@ groups.get = function(name, callback) {
         if (e) {
         console.error(e)
         }else{
-        console.log(v)
+        // console.log(v)
         }
     }
     if (name in groups) {
@@ -24,7 +24,7 @@ groups.put = function(config, group, callback) {
     if (e) {
       console.error(e);
     } else {
-      console.log(v);
+      // console.log(v);
     }
   };
 
@@ -57,7 +57,7 @@ groups.del = function(name, callback) {
         if (e) {
         console.error(e)
         }else{
-        console.log(v)
+        // console.log(v)
         }
     }
     if (name in groups) {
@@ -75,7 +75,7 @@ groups.add = function(name, node, callback) {
         if (e) {
         console.error(e)
         }else{
-        console.log(v)
+        // console.log(v)
         }
     }
     if (!groups[name]) {
@@ -91,7 +91,7 @@ groups.rem = function(name, node, callback) {
         if (e) {
         console.error(e)
         }else{
-        console.log(v)
+        // console.log(v)
         }
     }
     if (node in groups[name]) {

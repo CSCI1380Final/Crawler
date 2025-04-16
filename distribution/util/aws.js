@@ -1,6 +1,6 @@
 const distribution = require('../../config.js');
 
-const n1 = { ip: '127.0.0.1', port: 8001 };
+const n1 = { ip: '0.0.0.0', port: 8001 };
 
 console.log("Starting AWS node...");
 
