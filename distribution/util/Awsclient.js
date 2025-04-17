@@ -89,6 +89,11 @@ const awsNode15 = {
 //   port:9003
 // }
 
+const awsNode16 = {
+  ip : '3.148.225.107',
+  port : 8001
+}
+
 
 const localNode = {
   ip : 'localhost',
@@ -97,7 +102,7 @@ const localNode = {
 
 const localGid = { gid: 'research' };
 const localGroup = {};
-// localGroup[id.getSID(awsNode)] = awsNode;
+localGroup[id.getSID(awsNode)] = awsNode;
 // localGroup[id.getSID(awsNode2)] = awsNode2;
 // localGroup[id.getSID(awsNode3)] = awsNode3;
 // localGroup[id.getSID(awsNode4)] = awsNode4;
@@ -113,7 +118,7 @@ const localGroup = {};
 // localGroup[id.getSID(awsNode12)] = awsNode12
 // localGroup[id.getSID(awsNode13)] = awsNode13
 // localGroup[id.getSID(awsNode14)] = awsNode14
-localGroup[id.getSID(awsNode15)] = awsNode15
+// localGroup[id.getSID(awsNode15)] = awsNode15
 
 
 
